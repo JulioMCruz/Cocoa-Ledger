@@ -145,7 +145,7 @@ export async function analyzeToken(tokenData: TokenData): Promise<AnalysisResult
   if (config.aiProvider === "gemini") {
     const { GoogleGenerativeAI } = await import("@google/generative-ai");
     const client = new GoogleGenerativeAI(config.geminiApiKey);
-    const model = client.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
     const r = await model.generateContent(`${SYSTEM}\n\n${buildPrompt(tokenData)}`);
     return parse(r.response.text());
   }
