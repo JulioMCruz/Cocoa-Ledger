@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+.next/
+
+# Environment (NEVER commit secrets)
+.env
+.env.local
+.env.*.local
+
+# Foundry
+out/
+cache/
+broadcast/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Build
+dist/
+build/
