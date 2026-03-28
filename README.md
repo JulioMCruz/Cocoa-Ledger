@@ -1,4 +1,4 @@
-# 🌱 Cacao Origin — IoT to NFT on Rayls
+# 🌱 Cocoa Ledger — IoT to NFT on Rayls
 
 An autonomous pipeline that takes raw cacao farm IoT data, stores it privately on Rayls, AI-scores the harvest quality and pricing, then mints a confidential NFT for investors to purchase and unlock the private data.
 
