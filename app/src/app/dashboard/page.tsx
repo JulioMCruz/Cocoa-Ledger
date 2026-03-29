@@ -7,6 +7,7 @@ import { Header } from "@/components/header";
 import { FarmInfo } from "@/components/farm-info";
 import { IoTTable } from "@/components/iot-table";
 import { StoragePanel } from "@/components/storage-panel";
+import { DisputePanel } from "@/components/dispute-panel";
 import { SkeletonTable } from "@/components/skeleton-table";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,8 @@ function DashboardContent() {
   const [csvFile, setCsvFile] = useState<string>("iot-data-test.csv");
   const [storedMap, setStoredMap] = useState<Map<number, string>>(new Map());
   const [currentIndex, setCurrentIndex] = useState<number | undefined>(undefined);
+  const [analysis, setAnalysis] = useState<Record<string, unknown> | null>(null);
+  const [storedLotId, setStoredLotId] = useState<string | number | null>(null);
 
   const loadCSV = useCallback(async () => {
     setLoading(true);
@@ -238,7 +241,20 @@ function DashboardContent() {
 
           {loaded && (
             <section>
-              <StoragePanel data={data} onReadingStored={handleReadingStored} />
+              <StoragePanel
+                data={data}
+                onReadingStored={handleReadingStored}
+                onAnalysisComplete={(lid, a) => {
+                  setStoredLotId(lid);
+                  setAnalysis(a);
+                }}
+              />
+            </section>
+          )}
+
+          {loaded && (
+            <section>
+              <DisputePanel lotId={storedLotId} analysis={analysis} />
             </section>
           )}
         </div>
