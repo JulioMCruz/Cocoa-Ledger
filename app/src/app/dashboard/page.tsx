@@ -238,7 +238,7 @@ function DashboardContent() {
           <p className="text-center text-xs text-muted-foreground/50">
             Cocoa Ledger · Built on{" "}
             <span className="text-emerald-500/70">Rayls Privacy Node</span> ·
-            Hackathon 2026
+            Hackathon 2026 · <span className="font-mono">v0.3.0</span>
           </p>
         </div>
       </footer>

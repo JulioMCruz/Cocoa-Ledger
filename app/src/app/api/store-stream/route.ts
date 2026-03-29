@@ -73,11 +73,15 @@ export async function POST(req: NextRequest) {
         try {
           send({ type: "agent_event", step: "request", message: `POST /api/analyze-lot — sending lot ID ${lotId}` });
           send({ type: "agent_event", step: "blockchain_read", message: "Agent reading all IoT transactions from Privacy Node..." });
+          const agentController = new AbortController();
+          const agentTimeout = setTimeout(() => agentController.abort(), 55000);
           const analysisRes = await fetch(`${agentUrl}/api/analyze-lot`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ lotId: Number(lotId) }),
+            signal: agentController.signal,
           });
+          clearTimeout(agentTimeout);
           if (analysisRes.ok) {
             const analysis = await analysisRes.json() as Record<string, unknown>;
             const pub = analysis.publicMetadata as Record<string, unknown> | undefined;
