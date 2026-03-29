@@ -146,10 +146,48 @@ export function StoragePanel({ data, onReadingStored }: StoragePanelProps) {
               addLog(`AI Analysis failed: ${event.message}`, "error");
             } else if (event.type === "complete") {
               setStored(total);
-              setStatus("finalizing");
               addLog(`All readings stored. Finalizing lot...`);
               addLog(`Lot finalized — TX: ${event.finalizeHash}`, "success");
-              setTimeout(() => setStatus("done"), 500);
+              console.log(`%c✅ LOT FINALIZED — TX: ${event.finalizeHash}`, "color: #22c55e; font-weight: bold");
+
+              // Call agent directly from browser (avoids Netlify timeout)
+              const agentLotId = event.lotId;
+              console.log(`%c🤖 Calling Cocoa Agent for lot ${agentLotId}...`, "color: #3b82f6; font-weight: bold");
+              addAgentLog(`Connecting to Cocoa Agent...`);
+              addAgentLog(`POST /api/analyze-lot — lot ID ${agentLotId}`);
+              addAgentLog(`Agent reading IoT transactions from Privacy Node...`);
+              try {
+                const agentUrl = process.env.NEXT_PUBLIC_AGENT_URL || "http://46.225.67.25:3001";
+                const agentRes = await fetch(`${agentUrl}/api/analyze-lot`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ lotId: Number(agentLotId) }),
+                });
+                if (agentRes.ok) {
+                  const agentData = await agentRes.json();
+                  const pub = agentData?.publicMetadata;
+                  const priv = agentData?.privateMetadata;
+                  console.log("%c🎯 AI ANALYSIS COMPLETE", "color: #22c55e; font-size: 14px; font-weight: bold");
+                  console.log("%c📊 Public Metadata:", "color: #a855f7; font-weight: bold", pub);
+                  console.log("%c🔒 Private Metadata:", "color: #f59e0b; font-weight: bold", priv);
+                  addAgentLog(`AI analysis complete — Grade: ${pub?.qualityGrade}, Score: ${pub?.qualityScore}/100`, "success");
+                  addAgentLog(`Avg temp: ${pub?.avgTemperature}C, humidity: ${pub?.avgHumidity}%, soil pH: ${pub?.avgSoilPH}`, "info");
+                  addAgentLog(`Price estimate: $${priv?.priceEstimatePerKg}/kg`, "success");
+                  addAgentLog(`IoT data hash: ${priv?.iotDataHash}`, "info");
+                  addAgentLog(`Recommended use: ${pub?.recommendedUse}`, "success");
+                  addAgentLog(`Metadata ready for NFT minting`, "success");
+                  setAnalysis(agentData);
+                  addLog(`AI Analysis: Grade ${pub?.qualityGrade}, Score ${pub?.qualityScore}/100`, "success");
+                } else {
+                  console.log(`%c❌ Agent error: HTTP ${agentRes.status}`, "color: #ef4444");
+                  addAgentLog(`Agent returned HTTP ${agentRes.status}`, "error");
+                }
+              } catch (agentErr: unknown) {
+                const msg = agentErr instanceof Error ? agentErr.message : String(agentErr);
+                console.log(`%c❌ Agent connection failed: ${msg}`, "color: #ef4444");
+                addAgentLog(`Connection failed: ${msg}`, "error");
+              }
+              setStatus("done");
             } else if (event.type === "error") {
               setError(event.message);
               setStatus("error");
