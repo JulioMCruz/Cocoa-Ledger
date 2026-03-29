@@ -15,6 +15,7 @@ import {
   Terminal,
 } from "lucide-react";
 import type { IoTReading, StorageStatus } from "@/lib/types";
+import Link from "next/link";
 
 interface StoragePanelProps {
   data: IoTReading[];
@@ -524,6 +525,25 @@ export function StoragePanel({ data, onReadingStored }: StoragePanelProps) {
           </Card>
         );
       })()}
+
+      {/* Marketplace Link */}
+      {analysis && (
+        <Card className="border-amber-500/30 bg-card/50">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">🏪 Lot registered on Marketplace</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Investors can now purchase this NFT to reveal private data
+              </p>
+            </div>
+            <Link href="/marketplace">
+              <Button size="sm" className="bg-amber-600 hover:bg-amber-500 text-white">
+                View in Marketplace →
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
