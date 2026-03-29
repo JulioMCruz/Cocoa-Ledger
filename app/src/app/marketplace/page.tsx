@@ -164,140 +164,128 @@ function MarketplaceContent() {
       addLog(`Starting purchase for Lot #${tokenId}...`);
       addLog(`Buyer: ${address}`);
 
-      // SSE stream: via Netlify edge proxy (HTTPS, no timeout, supports SSE)
-      const evtSource = new EventSource(
-        `/marketplace-api/lot/${tokenId}/purchase-stream?buyer=${address}`
-      );
+      try {
+        // Step 1: Server mints NFT, bridges, lists on marketplace
+        addLog("🎨 Minting NFT on Privacy Node...");
+        const prepareRes = await fetch(`/api/marketplace/lot/${tokenId}/prepare`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ price: "1000000000000000" }),
+        });
+        const prepareData = await prepareRes.json();
 
-      evtSource.onmessage = async (event) => {
-        try {
-          const data = JSON.parse(event.data);
-
-          if (data.type === "log") {
-            addLog(data.message, "info");
-          } else if (data.type === "success") {
-            addLog(data.message, "success", data.txHash, data.explorer);
-            if (data.txHash) {
-              console.log(`%c✅ ${data.message}`, "color: #22c55e; font-weight: bold");
-              console.log(`%c🔗 ${data.explorer}`, "color: #22c55e");
-            }
-          } else if (data.type === "warn") {
-            addLog(data.message, "warn");
-          } else if (data.type === "error") {
-            addLog(data.message, "error");
-            setError(data.message);
-            setPurchasing(false);
-            evtSource.close();
-
-          } else if (data.type === "sign") {
-            // Server finished mint + bridge + list — now user signs buy() in wallet
-            evtSource.close();
-            addLog("🔑 Please sign the purchase in your wallet...", "info");
-
-            try {
-              // Switch to Public Chain if needed
-              try {
-                await ethereum.request({
-                  method: "wallet_switchEthereumChain",
-                  params: [{ chainId: "0x" + (7295799).toString(16) }],
-                });
-              } catch (switchErr: any) {
-                if (switchErr.code === 4902) {
-                  await ethereum.request({
-                    method: "wallet_addEthereumChain",
-                    params: [{
-                      chainId: "0x" + (7295799).toString(16),
-                      chainName: "Rayls Public Chain",
-                      nativeCurrency: { name: "USDr", symbol: "USDr", decimals: 18 },
-                      rpcUrls: ["https://testnet-rpc.rayls.com"],
-                      blockExplorerUrls: ["https://testnet-explorer.rayls.com"],
-                    }],
-                  });
-                }
-              }
-              await new Promise((r) => setTimeout(r, 1000));
-
-              // Call Marketplace.buy(listingId) via MetaMask
-              const { ethers } = await import("ethers");
-              const provider = new ethers.BrowserProvider(ethereum);
-              const signer = await provider.getSigner();
-              const marketplace = new ethers.Contract(
-                data.marketplaceAddress,
-                ["function buy(uint256) payable"],
-                signer
-              );
-
-              addLog(`Signing buy(${data.listingId}) on Marketplace.sol...`, "info");
-              const tx = await marketplace.buy(data.listingId, {
-                value: data.price,
-                gasLimit: 200000,
-              });
-              addLog(`TX sent: ${tx.hash.slice(0, 20)}...`, "info");
-
-              const receipt = await tx.wait();
-              const buyExplorer = `https://testnet-explorer.rayls.com/tx/${receipt.hash}`;
-              addLog(`✅ Purchase confirmed on-chain!`, "success", receipt.hash, buyExplorer);
-              console.log(`%c💰 BUY TX: ${receipt.hash}`, "color: #f59e0b; font-size: 12px; font-weight: bold");
-
-              // Confirm purchase → reveal data
-              addLog("Revealing private data...", "info");
-              const confRes = await fetch(`/api/marketplace/lot/${tokenId}/purchase`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ buyerAddress: address, txHash: receipt.hash }),
-              });
-              const confData = await confRes.json();
-
-              if (confData.success && confData.fullMetadata) {
-                addLog("🔓 Private data revealed!", "success");
-                setRevealedData({
-                  ...confData.fullMetadata,
-                  purchaseTxHash: receipt.hash,
-                  purchaseExplorer: buyExplorer,
-                  nftTokenId: data.nftTokenId,
-                } as RevealedData);
-                setLots((prev) =>
-                  prev.map((l) =>
-                    l.tokenId === tokenId ? { ...l, status: "revealed" } : l
-                  )
-                );
-              }
-            } catch (signErr: any) {
-              const msg = signErr.code === 4001 ? "Transaction rejected by user" : (signErr.message?.slice(0, 80) || "Sign failed");
-              addLog(`❌ ${msg}`, "error");
-              setError(msg);
-            }
-            setPurchasing(false);
-
-          } else if (data.type === "complete") {
-            addLog("🔓 Purchase complete — private data revealed!", "success");
-            if (data.fullMetadata) {
-              setRevealedData({
-                ...data.fullMetadata,
-                mintTxHash: data.mintTxHash,
-                bridgeTxHash: data.bridgeTxHash,
-                mintExplorer: data.mintExplorer,
-                bridgeExplorer: data.bridgeExplorer,
-              } as RevealedData);
-              setLots((prev) =>
-                prev.map((l) =>
-                  l.tokenId === tokenId ? { ...l, status: "revealed" } : l
-                )
-              );
-            }
-            setPurchasing(false);
-            evtSource.close();
-          }
-        } catch {
-          // ignore
+        if (!prepareRes.ok || prepareData.error) {
+          throw new Error(prepareData.error || prepareData.details || "Prepare failed");
         }
-      };
 
-      evtSource.onerror = () => {
-        addLog("Connection closed", "info");
-        setPurchasing(false);
-        evtSource.close();
-      };
+        if (prepareData.mintTxHash) {
+          addLog(`✅ NFT #${prepareData.nftTokenId} minted`, "success", prepareData.mintTxHash, `https://blockscout-privacy-node-0.rayls.com/tx/${prepareData.mintTxHash}`);
+        }
+        if (prepareData.bridgeTxHash) {
+          addLog(`✅ NFT bridged to Public Chain`, "success", prepareData.bridgeTxHash, `https://blockscout-privacy-node-0.rayls.com/tx/${prepareData.bridgeTxHash}`);
+        }
+        if (prepareData.listingId !== null && prepareData.listingId !== undefined) {
+          addLog(`✅ Listed on Marketplace — Listing #${prepareData.listingId}`, "success");
+        }
+
+        // Step 2: User signs buy() in MetaMask
+        if (prepareData.listingId !== null && prepareData.listingId !== undefined && prepareData.marketplaceAddress) {
+          addLog("🔑 Please sign the purchase in your wallet...", "info");
+
+          // Switch to Public Chain if needed
+          try {
+            await ethereum.request({
+              method: "wallet_switchEthereumChain",
+              params: [{ chainId: "0x" + (7295799).toString(16) }],
+            });
+          } catch (switchErr: any) {
+            if (switchErr.code === 4902) {
+              await ethereum.request({
+                method: "wallet_addEthereumChain",
+                params: [{
+                  chainId: "0x" + (7295799).toString(16),
+                  chainName: "Rayls Public Chain",
+                  nativeCurrency: { name: "USDr", symbol: "USDr", decimals: 18 },
+                  rpcUrls: ["https://testnet-rpc.rayls.com"],
+                  blockExplorerUrls: ["https://testnet-explorer.rayls.com"],
+                }],
+              });
+            }
+          }
+          await new Promise((r) => setTimeout(r, 1000));
+
+          // Call Marketplace.buy(listingId) via MetaMask
+          const { ethers } = await import("ethers");
+          const provider = new ethers.BrowserProvider(ethereum);
+          const signer = await provider.getSigner();
+          const marketplace = new ethers.Contract(
+            prepareData.marketplaceAddress,
+            ["function buy(uint256) payable"],
+            signer
+          );
+
+          addLog(`Signing buy(${prepareData.listingId}) on Marketplace.sol...`, "info");
+          const tx = await marketplace.buy(prepareData.listingId, {
+            value: prepareData.price || "1000000000000000",
+            gasLimit: 200000,
+          });
+          addLog(`TX sent: ${tx.hash.slice(0, 20)}...`, "info");
+
+          const receipt = await tx.wait();
+          const buyExplorer = `https://testnet-explorer.rayls.com/tx/${receipt.hash}`;
+          addLog(`✅ Purchase confirmed on-chain!`, "success", receipt.hash, buyExplorer);
+          console.log(`%c💰 BUY TX: ${receipt.hash}`, "color: #f59e0b; font-size: 12px; font-weight: bold");
+
+          // Step 3: Confirm purchase → reveal data
+          addLog("Revealing private data...", "info");
+          const confRes = await fetch(`/api/marketplace/lot/${tokenId}/purchase`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ buyerAddress: address, txHash: receipt.hash }),
+          });
+          const confData = await confRes.json();
+
+          if (confData.success && confData.fullMetadata) {
+            addLog("🔓 Private data revealed!", "success");
+            setRevealedData({
+              ...confData.fullMetadata,
+              purchaseTxHash: receipt.hash,
+              purchaseExplorer: buyExplorer,
+              nftTokenId: prepareData.nftTokenId,
+              mintTxHash: prepareData.mintTxHash,
+              bridgeTxHash: prepareData.bridgeTxHash,
+            } as RevealedData);
+            setLots((prev) =>
+              prev.map((l) =>
+                l.tokenId === tokenId ? { ...l, status: "revealed" } : l
+              )
+            );
+          }
+        } else {
+          // No marketplace listing — just reveal (fallback for demo lots without contract)
+          addLog("Revealing data...", "info");
+          const confRes = await fetch(`/api/marketplace/lot/${tokenId}/purchase`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ buyerAddress: address }),
+          });
+          const confData = await confRes.json();
+          if (confData.success && confData.fullMetadata) {
+            addLog("🔓 Data revealed (demo mode)", "success");
+            setRevealedData(confData.fullMetadata as RevealedData);
+            setLots((prev) =>
+              prev.map((l) =>
+                l.tokenId === tokenId ? { ...l, status: "revealed" } : l
+              )
+            );
+          }
+        }
+      } catch (e: any) {
+        const msg = e.code === 4001 ? "Transaction rejected by user" : (e.message?.slice(0, 100) || "Purchase failed");
+        addLog(`❌ ${msg}`, "error");
+        setError(msg);
+      }
+      setPurchasing(false);
     },
     [address, isConnected, addLog]
   );
