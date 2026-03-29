@@ -14,14 +14,14 @@ const stats = [
   {
     icon: MapPin,
     label: "Origin",
-    value: "Cusco, Peru",
+    value: "Arauca, Colombia",
     sub: "Single-origin estate",
   },
   {
     icon: Mountain,
     label: "Regions",
     value: "4 Active",
-    sub: "Cusco · San Martín · Amazonas · Junín",
+    sub: "Arauca · Casanare · Meta · Vichada",
   },
 ];
 

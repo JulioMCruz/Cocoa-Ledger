@@ -87,7 +87,7 @@ export function StoragePanel({ data, onReadingStored }: StoragePanelProps) {
       const createRes = await fetch("/api/store-chunk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "create_lot", farmName: "Finca Dorada", origin: "Peru" }),
+        body: JSON.stringify({ action: "create_lot", farmName: "Finca El Llano", origin: "Colombia" }),
       });
       const createData = await createRes.json();
       if (!createRes.ok) throw new Error(createData.error);
