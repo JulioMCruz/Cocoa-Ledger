@@ -112,12 +112,24 @@ function MarketplaceContent() {
   const [revealedData, setRevealedData] = useState<RevealedData | null>(null);
   const [purchaseLogs, setPurchaseLogs] = useState<PurchaseLog[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 12;
+  const totalPages = Math.ceil(lots.length / PAGE_SIZE);
+  const pagedLots = lots.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   useEffect(() => {
     fetch("/api/marketplace/lots")
       .then((r) => r.json())
       .then((data) => {
-        if (Array.isArray(data)) setLots(data);
+        if (Array.isArray(data)) {
+          // Sort descending by creation date (newest first)
+          const sorted = data.sort((a: CacaoLot, b: CacaoLot) => {
+            const dateA = new Date(a.createdAt || 0).getTime();
+            const dateB = new Date(b.createdAt || 0).getTime();
+            return dateB - dateA;
+          });
+          setLots(sorted);
+        }
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -255,7 +267,7 @@ function MarketplaceContent() {
       ) : (
         <>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {lots.map((lot) => (
+          {pagedLots.map((lot) => (
             <LotCard
               key={lot.tokenId}
               lot={lot}
@@ -264,6 +276,31 @@ function MarketplaceContent() {
             />
           ))}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-3 mt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={page === 0}
+            >
+              ← Previous
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              Page {page + 1} of {totalPages} · {lots.length} lots
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={page >= totalPages - 1}
+            >
+              Next →
+            </Button>
+          </div>
+        )}
 
         {/* Purchase Log */}
         {purchaseLogs.length > 0 && (
