@@ -80,6 +80,47 @@ app.post("/api/analyze-lot", async (req, res) => {
       readings.length
     );
 
+    // Register lot on marketplace
+    let marketplace = null;
+    const marketplaceUrl = process.env.MARKETPLACE_URL;
+    if (marketplaceUrl) {
+      try {
+        console.log(`[analyze] Registering lot on marketplace...`);
+        const marketRes = await fetch(`${marketplaceUrl}/api/cacao-market/lot`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lotId: lotIdNum,
+            farmName: lot.farmName,
+            origin: lot.origin,
+            analyzedAt: result.analyzedAt,
+            publicMetadata: result.publicMetadata,
+            privateMetadata: result.privateMetadata,
+            attestation: attestation
+              ? {
+                  txHash: attestation.txHash,
+                  explorerUrl: attestation.explorerUrl,
+                  chain: attestation.chain,
+                  attester: attestation.attester,
+                  approved: attestation.approved,
+                }
+              : null,
+          }),
+          signal: AbortSignal.timeout(10000),
+        });
+        if (marketRes.ok) {
+          marketplace = await marketRes.json();
+          console.log(
+            `[analyze] ✅ Lot registered on marketplace — tokenId: ${marketplace.tokenId}`
+          );
+        } else {
+          console.log(`[analyze] ⚠️ Marketplace returned ${marketRes.status}`);
+        }
+      } catch (marketErr: any) {
+        console.log(`[analyze] ⚠️ Marketplace unavailable: ${marketErr.message}`);
+      }
+    }
+
     const response = {
       ...result,
       attestation: attestation
@@ -90,6 +131,13 @@ app.post("/api/analyze-lot", async (req, res) => {
             chain: attestation.chain,
             explorerUrl: attestation.explorerUrl,
             approved: attestation.approved,
+          }
+        : null,
+      marketplace: marketplace
+        ? {
+            tokenId: marketplace.tokenId,
+            listed: true,
+            url: marketplaceUrl,
           }
         : null,
     };
