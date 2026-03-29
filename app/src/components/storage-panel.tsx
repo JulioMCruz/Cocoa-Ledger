@@ -157,8 +157,7 @@ export function StoragePanel({ data, onReadingStored }: StoragePanelProps) {
               addAgentLog(`POST /api/analyze-lot — lot ID ${agentLotId}`);
               addAgentLog(`Agent reading IoT transactions from Privacy Node...`);
               try {
-                const agentUrl = process.env.NEXT_PUBLIC_AGENT_URL || "http://46.225.67.25:3001";
-                const agentRes = await fetch(`${agentUrl}/api/analyze-lot`, {
+                const agentRes = await fetch("/api/analyze-lot", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ lotId: Number(agentLotId) }),
