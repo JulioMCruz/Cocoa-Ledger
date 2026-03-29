@@ -1,6 +1,6 @@
 // Cocoa Ledger constants
 
-export const APP_VERSION = "0.5.0";
+export const APP_VERSION = "0.6.0";
 
 export const EXPLORER_URLS = {
   privacyNode: "https://blockscout-privacy-node-0.rayls.com",

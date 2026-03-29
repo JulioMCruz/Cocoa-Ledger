@@ -1,6 +1,6 @@
 {
   "name": "cocoa-ledger-agent",
-  "version": "1.0.0",
+  "version": "0.6.0",
   "description": "AI Oracle Agent for Cocoa Ledger - reads IoT data from Rayls Privacy Node and produces quality metadata",
   "main": "dist/index.js",
   "scripts": {

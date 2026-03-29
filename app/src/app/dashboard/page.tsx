@@ -10,6 +10,7 @@ import { StoragePanel } from "@/components/storage-panel";
 import { SkeletonTable } from "@/components/skeleton-table";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { APP_VERSION } from "@/lib/constants";
 import { Badge } from "@/components/ui/badge";
 import {
   Database,
@@ -248,7 +249,7 @@ function DashboardContent() {
           <p className="text-center text-xs text-muted-foreground/50">
             Cocoa Ledger · Built on{" "}
             <span className="text-emerald-500/70">Rayls Privacy Node</span> ·
-            Hackathon 2026 · <span className="font-mono">v0.5.0</span>
+            Hackathon 2026 · <span className="font-mono">v{APP_VERSION}</span>
           </p>
         </div>
       </footer>
