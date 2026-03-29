@@ -68,22 +68,35 @@ export async function POST(req: NextRequest) {
         const finalizeTx = await contract.finalizeLot(lotId);
         await finalizeTx.wait();
         // Trigger AI agent analysis
-        send({ type: "status", message: "Triggering AI agent analysis...", progress: 100 });
+        const agentUrl = process.env.AGENT_URL || "http://46.225.67.25:3001";
+        send({ type: "agent_event", step: "connect", message: `Connecting to Cocoa Agent at ${agentUrl}...` });
         try {
-          const agentUrl = process.env.AGENT_URL || "http://46.225.67.25:3001";
+          send({ type: "agent_event", step: "request", message: `POST /api/analyze-lot — sending lot ID ${lotId}` });
+          send({ type: "agent_event", step: "blockchain_read", message: "Agent reading all IoT transactions from Privacy Node..." });
           const analysisRes = await fetch(`${agentUrl}/api/analyze-lot`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ lotId: Number(lotId) }),
           });
           if (analysisRes.ok) {
-            const analysis = await analysisRes.json();
+            const analysis = await analysisRes.json() as Record<string, unknown>;
+            const pub = analysis.publicMetadata as Record<string, unknown> | undefined;
+            const priv = analysis.privateMetadata as Record<string, unknown> | undefined;
+            send({ type: "agent_event", step: "ai_analysis", message: `AI model analyzing ${analysis.readingsCount} readings — computing averages, device stats, anomaly detection...` });
+            send({ type: "agent_event", step: "scoring", message: `Quality scoring: Grade ${pub?.qualityGrade}, Score ${pub?.qualityScore}/100` });
+            send({ type: "agent_event", step: "scoring_detail", message: `Scoring based on: avg temp ${pub?.avgTemperature}C (ideal 20-30C), humidity ${pub?.avgHumidity}% (ideal 70-90%), soil pH ${pub?.avgSoilPH} (ideal 5.0-7.5), rainfall ${pub?.avgRainfall}mm` });
+            send({ type: "agent_event", step: "pricing", message: `Market price estimate: $${priv?.priceEstimatePerKg}/kg based on grade and regional comparables` });
+            send({ type: "agent_event", step: "metadata", message: `Generated public metadata (visible pre-purchase) + private metadata (revealed post-purchase)` });
+            send({ type: "agent_event", step: "hash", message: `IoT data hash: ${priv?.iotDataHash} — verifiable proof of analyzed data` });
+            send({ type: "agent_event", step: "complete", message: `Cocoa Agent analysis complete — recommended use: ${pub?.recommendedUse}` });
             send({ type: "analysis_complete", lotId: lotId.toString(), analysis });
           } else {
+            send({ type: "agent_event", step: "error", message: `Agent returned HTTP ${analysisRes.status}` });
             send({ type: "analysis_error", message: `Agent returned ${analysisRes.status}` });
           }
         } catch (agentErr: unknown) {
           const agentMsg = agentErr instanceof Error ? agentErr.message : String(agentErr);
+          send({ type: "agent_event", step: "error", message: `Connection failed: ${agentMsg}` });
           send({ type: "analysis_error", message: agentMsg });
         }
 
