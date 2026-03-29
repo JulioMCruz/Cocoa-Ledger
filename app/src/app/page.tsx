@@ -260,7 +260,7 @@ export default function LandingPage() {
             <p className="text-xs text-muted-foreground/40">
               Built on{" "}
               <span className="text-emerald-500/60">Rayls Privacy Node</span>{" "}
-              · Hackathon 2026 · <span className="font-mono">v0.3.0</span>
+              · Hackathon 2026 · <span className="font-mono">v0.5.0</span>
             </p>
           </div>
         </div>
