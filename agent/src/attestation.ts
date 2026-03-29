@@ -74,7 +74,7 @@ export async function postAttestation(
   const tokenAddress = process.env.DATA_CONTRACT_ADDRESS || ethers.ZeroAddress;
 
   const approved = qualityScore >= 50; // C grade or above = approved
-  const reason = `Cocoa Agent AI Analysis | Lot #${lotId} | Farm: ${farmName} | Origin: ${origin} | Grade: ${qualityGrade} | Score: ${qualityScore}/100 | Readings: ${readingsCount} | Model: Gemini 2.5`;
+  const reason = `Cacao Quality Attestation | Lot #${lotId} | Farm: ${farmName} | Origin: ${origin} | Grade: ${qualityGrade} | Score: ${qualityScore}/100 | IoT Readings: ${readingsCount} | Cocoa Ledger Agent`;
 
   // Try Public Chain first
   const publicRpc = process.env.PUBLIC_CHAIN_RPC_URL;
