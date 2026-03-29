@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useAccount } from "wagmi";
+import { useAccount, useWalletClient } from "wagmi";
+import { parseEther } from "viem";
 import { Header } from "@/components/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -92,7 +93,6 @@ export default function MarketplacePage() {
   );
 }
 
-const PURCHASE_PRICE = "0.001"; // 0.001 USDr
 
 interface PurchaseLog {
   time: string;
@@ -102,8 +102,12 @@ interface PurchaseLog {
   explorer?: string;
 }
 
+const ATTESTATION_ADDRESS = "0x0Ee606d003e5E519CCcEA3e37c748B11d0cFE61e" as const;
+const PURCHASE_PRICE = "0.001"; // 0.001 USDr
+
 function MarketplaceContent() {
-  const { address } = useAccount();
+  const { address, chainId } = useAccount();
+  const { data: walletClient } = useWalletClient();
 
   const [lots, setLots] = useState<CacaoLot[]>([]);
   const [loading, setLoading] = useState(true);
@@ -142,7 +146,7 @@ function MarketplaceContent() {
 
   const handlePurchase = useCallback(
     async (tokenId: number) => {
-      if (!address) {
+      if (!address || !walletClient) {
         setError("Connect your wallet first");
         return;
       }
@@ -154,7 +158,41 @@ function MarketplaceContent() {
 
       addLog(`Starting purchase for Lot #${tokenId}...`);
       addLog(`Buyer: ${address}`);
-      addLog("Connecting to Rayls blockchain...");
+
+      // Step 1: Request wallet approval — real on-chain TX
+      addLog("💰 Requesting wallet approval for 0.001 USDr...");
+      let paymentTxHash: string;
+      try {
+        // Switch to Public Chain if needed
+        if (chainId !== 7295799) {
+          addLog("Switching to Rayls Public Chain...");
+          await walletClient.switchChain({ id: 7295799 });
+          await new Promise((r) => setTimeout(r, 1500));
+        }
+
+        paymentTxHash = await walletClient.sendTransaction({
+          to: ATTESTATION_ADDRESS,
+          value: parseEther(PURCHASE_PRICE),
+          chain: { id: 7295799, name: "Rayls Public Chain", nativeCurrency: { name: "USDr", symbol: "USDr", decimals: 18 }, rpcUrls: { default: { http: ["/api/rpc/public"] } } },
+        });
+        addLog(`✅ Payment TX signed: ${paymentTxHash}`, "success", paymentTxHash, `https://testnet-explorer.rayls.com/tx/${paymentTxHash}`);
+        console.log(`%c💰 PAYMENT TX: ${paymentTxHash}`, "color: #f59e0b; font-size: 12px; font-weight: bold");
+        console.log(`%c🔗 https://testnet-explorer.rayls.com/tx/${paymentTxHash}`, "color: #f59e0b");
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes("rejected") || msg.includes("denied")) {
+          addLog("❌ Transaction rejected by user", "error");
+          setError("Transaction rejected");
+        } else {
+          addLog(`❌ Payment failed: ${msg.slice(0, 80)}`, "error");
+          setError(msg.slice(0, 80));
+        }
+        setPurchasing(false);
+        return;
+      }
+
+      // Step 2: After payment confirmed, proceed with NFT mint + bridge
+      addLog("Connecting to Rayls blockchain for NFT mint...");
 
       // Use SSE purchase-stream for real-time logs
       const evtSource = new EventSource(
