@@ -1,0 +1,51 @@
+device_id,timestamp,cacao_type,region,altitude,temperature,humidity,precipitation,soil_moisture,soil_ph,soil_type,crop_age,crop_status,fruit_color,fruit_size,harvest_season,cultivation_method,pesticide_use,fermentation_type,light_intensity,gps_lat,gps_lng,producer_id,lot_volume_kg,sale_price_usd,lab_quality_score,certification
+3,2026-03-03T19:43:41Z,Criollo,Junin,862,2959,7655,12588,7631,682,volcanic,6,growing,purple,small,main,organic,none,box,15483,-10.748338,-74.869312,PROD-016,4901,8803,98,none
+3,2026-03-26T11:27:52Z,Trinitario,Amazonas,623,2248,9167,18668,4251,587,sandy_loam,3,fruiting,orange,large,mid-crop,organic,limited,box,39588,-6.746116,-77.338025,PROD-004,3461,11854,76,none
+5,2026-03-03T11:28:49Z,Forastero,Junin,784,2953,8604,16937,4160,627,sandy_loam,21,flowering,yellow,medium,main,organic,none,basket,42351,-10.642992,-74.869351,PROD-019,3794,12952,93,rainforest_alliance
+5,2026-03-07T09:08:16Z,Criollo,Amazonas,944,2641,9174,14971,7927,678,sandy_loam,4,flowering,yellow,large,main,traditional,controlled,basket,19416,-6.415730,-77.744419,PROD-002,2942,8025,70,organic
+4,2026-03-17T02:54:03Z,Criollo,Amazonas,1178,2413,7922,17182,6260,564,volcanic,23,fruiting,orange,small,mid-crop,organic,controlled,box,40149,-6.351797,-77.960566,PROD-019,3650,11838,98,rainforest_alliance
+4,2026-03-01T05:29:03Z,Criollo,San Martin,1159,2962,7940,9201,4198,624,clay_loam,25,growing,orange,small,mid-crop,organic,none,box,5476,-7.236672,-76.839329,PROD-014,1004,12278,62,none
+6,2026-03-21T13:22:10Z,Criollo,Junin,622,2734,7444,17194,5925,574,clay_loam,6,healthy,orange,large,main,agroforestry,limited,heap,24012,-11.510384,-75.395736,PROD-001,752,7116,79,none
+3,2026-03-23T15:29:40Z,Criollo,Junin,641,2242,7404,11153,6571,568,volcanic,4,fruiting,purple,medium,mid-crop,agroforestry,limited,heap,32064,-11.358931,-74.844152,PROD-012,2029,6200,76,organic
+5,2026-03-17T14:57:33Z,Criollo,Cusco,663,2291,8211,14070,5130,669,volcanic,18,flowering,orange,medium,mid-crop,organic,controlled,basket,23701,-14.026661,-71.644364,PROD-001,1555,4767,60,none
+1,2026-03-26T05:41:42Z,Criollo,San Martin,536,2581,8715,14726,7253,693,clay_loam,10,healthy,red,small,mid-crop,organic,none,box,36755,-6.460384,-75.551180,PROD-009,4424,2840,75,fair_trade
+3,2026-03-14T10:39:25Z,Forastero,Cusco,690,2459,7726,8842,4435,686,clay_loam,5,healthy,purple,medium,main,organic,none,basket,27732,-12.871441,-72.562829,PROD-013,2106,12736,77,organic
+4,2026-03-13T21:29:31Z,Trinitario,Junin,668,2280,7156,16911,4856,692,volcanic,11,flowering,yellow,medium,mid-crop,agroforestry,controlled,basket,19528,-11.224650,-75.411760,PROD-020,2443,3041,84,organic
+2,2026-03-20T18:01:03Z,Trinitario,Junin,429,2620,7985,9626,5232,655,volcanic,21,fruiting,orange,medium,main,traditional,none,basket,29723,-11.810047,-75.557014,PROD-003,4319,5253,87,fair_trade
+3,2026-03-21T20:34:07Z,Criollo,Cusco,730,2210,7310,13934,6895,587,clay_loam,9,healthy,orange,small,main,agroforestry,none,box,38630,-12.939070,-72.720870,PROD-009,2509,5859,75,fair_trade
+4,2026-03-18T09:41:24Z,Criollo,Amazonas,805,2246,7876,16037,4037,565,clay_loam,3,flowering,yellow,small,main,organic,none,basket,41225,-6.395669,-78.197565,PROD-012,1034,10239,83,organic
+1,2026-03-09T17:08:05Z,Criollo,Amazonas,1077,2640,7990,12833,4737,658,volcanic,17,healthy,purple,medium,main,traditional,none,box,49882,-6.729462,-77.451021,PROD-012,4415,14053,70,organic
+4,2026-03-17T11:32:10Z,Trinitario,Amazonas,684,2577,9427,10952,6307,551,clay_loam,23,growing,purple,large,mid-crop,organic,none,basket,40509,-5.899396,-78.452245,PROD-020,4544,8405,90,rainforest_alliance
+7,2026-03-06T13:27:22Z,Criollo,Cusco,887,2672,8093,11100,7400,562,volcanic,23,flowering,orange,small,mid-crop,agroforestry,none,basket,34295,-13.999783,-72.075963,PROD-004,2662,6870,69,organic
+3,2026-03-24T21:36:19Z,Criollo,San Martin,413,2217,7170,16232,5283,564,volcanic,10,growing,orange,small,mid-crop,organic,none,box,6667,-6.140330,-77.035500,PROD-015,3940,3670,62,none
+8,2026-03-20T21:37:12Z,Forastero,Cusco,585,2217,7480,12192,7405,575,sandy_loam,12,healthy,yellow,medium,mid-crop,organic,limited,heap,44344,-13.088961,-72.020220,PROD-011,4916,10397,91,organic
+2,2026-03-24T20:40:51Z,Trinitario,Amazonas,912,2461,9104,15325,6489,656,sandy_loam,15,fruiting,purple,medium,mid-crop,organic,none,basket,24985,-5.821545,-77.407336,PROD-013,1693,9707,86,none
+7,2026-03-04T04:58:56Z,Trinitario,Junin,1029,2961,7977,12875,5301,551,clay_loam,3,flowering,yellow,large,mid-crop,organic,limited,box,22656,-11.496245,-75.170289,PROD-015,3886,9223,95,none
+3,2026-03-16T06:00:56Z,Criollo,San Martin,839,2850,8502,15719,5019,668,sandy_loam,11,growing,yellow,medium,mid-crop,agroforestry,none,basket,28684,-6.436916,-76.679519,PROD-017,3487,10846,95,none
+3,2026-03-06T04:05:16Z,Criollo,Junin,967,2215,9379,13233,7804,639,sandy_loam,17,fruiting,red,large,main,organic,none,box,27046,-11.371315,-76.041562,PROD-015,2595,12859,63,fair_trade
+2,2026-03-24T23:26:11Z,Criollo,Junin,724,2349,9478,9682,5326,698,clay_loam,15,healthy,red,large,mid-crop,agroforestry,controlled,heap,29196,-11.410327,-75.477011,PROD-010,1751,11180,70,none
+5,2026-03-11T19:13:22Z,Forastero,San Martin,713,2936,8859,17830,6063,605,sandy_loam,7,healthy,yellow,medium,main,organic,none,heap,16197,-6.934626,-75.595715,PROD-003,257,3594,82,rainforest_alliance
+2,2026-03-10T01:49:37Z,Criollo,Amazonas,1102,2959,9024,11197,4514,592,clay_loam,23,flowering,yellow,large,main,organic,none,box,43853,-6.253607,-77.565240,PROD-018,1211,14998,94,none
+6,2026-03-28T05:34:58Z,Criollo,Amazonas,1142,2242,9233,11072,5109,594,volcanic,7,fruiting,yellow,small,main,organic,none,basket,10295,-6.009258,-78.044086,PROD-012,784,4565,87,rainforest_alliance
+8,2026-03-27T17:12:16Z,Forastero,Amazonas,1148,2815,8434,8806,4757,684,sandy_loam,23,fruiting,orange,large,mid-crop,traditional,none,box,20296,-6.409129,-77.055161,PROD-001,2603,8931,61,rainforest_alliance
+4,2026-03-26T18:48:44Z,Criollo,Junin,845,2304,8906,10677,6397,654,clay_loam,24,flowering,orange,large,main,organic,controlled,heap,21414,-10.980933,-75.447543,PROD-014,4652,6999,88,organic
+7,2026-03-23T02:53:40Z,Criollo,Cusco,479,2230,8249,19055,6234,620,volcanic,21,growing,orange,medium,mid-crop,organic,none,basket,12722,-13.819604,-71.648493,PROD-007,2036,2119,95,organic
+5,2026-03-09T13:23:12Z,Forastero,Junin,947,2642,9062,17564,4748,681,clay_loam,4,fruiting,purple,small,main,organic,controlled,box,47162,-11.004246,-75.607301,PROD-014,2009,12065,90,fair_trade
+1,2026-03-26T01:23:45Z,Trinitario,Cusco,1030,2219,8622,18453,4498,673,clay_loam,10,flowering,red,medium,main,traditional,limited,basket,22778,-14.040577,-72.098120,PROD-015,996,2131,62,none
+8,2026-03-06T16:01:26Z,Forastero,San Martin,611,2273,7740,15946,6228,559,sandy_loam,20,growing,red,small,mid-crop,traditional,controlled,heap,10033,-5.942086,-76.388914,PROD-001,2364,3820,81,organic
+1,2026-03-16T00:57:27Z,Trinitario,Junin,432,2987,9215,16968,7362,666,sandy_loam,14,healthy,red,small,mid-crop,organic,none,box,13427,-10.804192,-75.697970,PROD-009,4890,9349,69,none
+5,2026-03-25T01:46:05Z,Trinitario,Cusco,827,2566,8854,18070,5302,695,clay_loam,4,healthy,red,small,main,agroforestry,limited,basket,45664,-13.847660,-71.832793,PROD-012,3350,5435,77,rainforest_alliance
+4,2026-03-06T12:31:36Z,Criollo,Amazonas,734,2572,7670,10567,4006,578,clay_loam,22,fruiting,red,medium,mid-crop,organic,none,heap,31184,-6.451407,-77.793403,PROD-008,529,12829,84,rainforest_alliance
+3,2026-03-26T03:19:12Z,Trinitario,Cusco,733,2541,8865,12131,5802,597,sandy_loam,18,healthy,red,small,mid-crop,traditional,none,basket,11061,-13.902384,-71.851702,PROD-008,3950,2259,70,organic
+6,2026-03-24T21:20:01Z,Criollo,Amazonas,685,2324,7205,10023,7960,597,sandy_loam,10,flowering,red,large,main,organic,none,basket,33762,-6.807550,-77.987800,PROD-014,3168,10042,75,none
+4,2026-03-15T12:34:03Z,Forastero,Cusco,1001,2873,8831,17022,7187,678,sandy_loam,4,growing,purple,small,mid-crop,agroforestry,none,heap,18195,-12.841095,-71.748029,PROD-015,3768,10439,71,organic
+2,2026-03-23T20:39:51Z,Trinitario,Amazonas,527,2378,8743,15427,6960,672,clay_loam,10,fruiting,yellow,small,main,organic,none,basket,35155,-5.760535,-77.074986,PROD-009,1639,7578,65,fair_trade
+2,2026-03-19T17:10:55Z,Trinitario,Junin,877,2213,9363,10008,7298,668,clay_loam,15,healthy,orange,small,mid-crop,organic,limited,box,47880,-11.412887,-75.958919,PROD-005,3447,6750,73,rainforest_alliance
+3,2026-03-05T23:04:30Z,Forastero,Amazonas,1187,2588,7880,13441,5291,606,clay_loam,13,healthy,yellow,large,mid-crop,traditional,none,box,21003,-5.481900,-78.342413,PROD-014,4678,11007,78,organic
+3,2026-03-22T15:25:21Z,Forastero,Junin,419,2556,7181,11302,4108,587,sandy_loam,9,flowering,yellow,large,main,agroforestry,none,heap,12446,-11.439401,-74.596924,PROD-001,4695,5864,63,fair_trade
+4,2026-03-25T05:30:01Z,Trinitario,Amazonas,439,2704,7890,8476,6298,621,clay_loam,4,fruiting,orange,small,mid-crop,agroforestry,controlled,heap,38364,-6.546744,-77.883215,PROD-005,4494,4139,67,none
+6,2026-03-20T22:09:28Z,Criollo,Junin,801,2957,9266,17533,7555,691,volcanic,3,growing,yellow,small,main,traditional,controlled,basket,30331,-11.292274,-74.927783,PROD-004,3518,14088,95,rainforest_alliance
+3,2026-03-13T15:17:39Z,Criollo,Junin,712,2980,7139,14859,4663,621,clay_loam,20,growing,orange,medium,mid-crop,agroforestry,none,basket,18457,-10.684273,-74.997284,PROD-006,1724,2608,66,organic
+8,2026-03-02T17:46:57Z,Criollo,San Martin,821,2408,7232,13959,5224,643,sandy_loam,21,fruiting,yellow,large,main,traditional,limited,basket,16143,-6.832468,-76.646645,PROD-013,992,9694,82,none
+5,2026-03-09T13:41:04Z,Criollo,Junin,1183,2557,8039,12585,5280,577,volcanic,19,healthy,orange,large,main,agroforestry,none,box,19290,-11.093614,-74.823016,PROD-019,4505,7645,71,fair_trade
+1,2026-03-04T21:50:44Z,Criollo,Cusco,418,2231,8706,16376,5215,591,volcanic,17,flowering,purple,large,main,traditional,none,basket,36863,-12.994398,-71.783073,PROD-004,1453,2968,69,organic
