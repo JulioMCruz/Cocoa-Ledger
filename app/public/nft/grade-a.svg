@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="240" viewBox="0 0 400 240">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0a1a10"/>
+      <stop offset="100%" stop-color="#0f2418"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#22c55e"/>
+      <stop offset="100%" stop-color="#16a34a"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="240" rx="16" fill="url(#bg)"/>
+  <rect x="1" y="1" width="398" height="238" rx="15" fill="none" stroke="#22c55e" stroke-width="2" opacity="0.3"/>
+  <text x="32" y="44" fill="#22c55e" font-family="system-ui" font-size="14" font-weight="600" opacity="0.7">COCOA LEDGER</text>
+  <text x="32" y="120" fill="url(#green)" font-family="system-ui" font-size="72" font-weight="800">A</text>
+  <text x="90" y="105" fill="#4ade80" font-family="system-ui" font-size="18" font-weight="500">EXCELLENT</text>
+  <text x="90" y="125" fill="#1a6b35" font-family="system-ui" font-size="13">85-94 · Fine Chocolate Grade</text>
+  <text x="32" y="168" fill="#4ade80" font-family="system-ui" font-size="40">🌿</text>
+  <text x="80" y="162" fill="#3a8a5a" font-family="system-ui" font-size="11" font-weight="500">VERIFIED CACAO HARVEST</text>
+  <text x="80" y="178" fill="#2a5a3a" font-family="system-ui" font-size="10">Llanos Orientales · Colombia</text>
+  <rect x="280" y="30" width="90" height="28" rx="6" fill="#22c55e" opacity="0.15"/>
+  <text x="296" y="49" fill="#22c55e" font-family="monospace" font-size="12" font-weight="600">NFT #---</text>
+  <text x="32" y="218" fill="#1a4a2a" font-family="system-ui" font-size="9">Confidential NFT · Rayls Privacy Chain · AI Attested</text>
+</svg>
