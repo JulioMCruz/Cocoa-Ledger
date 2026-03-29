@@ -27,9 +27,12 @@ interface LogEntry {
   type: "info" | "success" | "error";
 }
 
+const CHUNK_SIZE = 5;
+
 export function StoragePanel({ data, onReadingStored }: StoragePanelProps) {
   const { isConnected } = useAccount();
   const logEndRef = useRef<HTMLDivElement>(null);
+  const agentLogEndRef = useRef<HTMLDivElement>(null);
 
   const [status, setStatus] = useState<StorageStatus>("idle");
   const [stored, setStored] = useState(0);
@@ -38,8 +41,7 @@ export function StoragePanel({ data, onReadingStored }: StoragePanelProps) {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [agentLogs, setAgentLogs] = useState<LogEntry[]>([]);
   const [analysis, setAnalysis] = useState<Record<string, unknown> | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
-  const agentLogEndRef = useRef<HTMLDivElement>(null);
+  const cancelRef = useRef(false);
 
   const total = data.length;
   const progress = total > 0 ? (stored / total) * 100 : 0;
@@ -66,9 +68,8 @@ export function StoragePanel({ data, onReadingStored }: StoragePanelProps) {
     if (!isConnected || data.length === 0) return;
 
     console.log("%c🍫 COCOA LEDGER — BATCH STORE STARTED", "color: #22c55e; font-size: 14px; font-weight: bold");
-    console.log(`%c📦 Total readings to store: ${data.length}`, "color: #3b82f6");
+    console.log(`%c📦 Total readings to store: ${data.length} (chunks of ${CHUNK_SIZE})`, "color: #3b82f6");
     console.log("%c🔗 Target: Rayls Privacy Node (Chain 800000, gasless)", "color: #3b82f6");
-    console.log(`%c📄 Contract: ${process.env.NEXT_PUBLIC_DATA_CONTRACT_ADDRESS}`, "color: #6b7280");
 
     setError(null);
     setStored(0);
@@ -76,148 +77,119 @@ export function StoragePanel({ data, onReadingStored }: StoragePanelProps) {
     setLotId(null);
     setLogs([]);
     setAgentLogs([]);
-    addLog(`Starting batch process for ${data.length} readings...`);
-
-    const controller = new AbortController();
-    abortRef.current = controller;
+    setAnalysis(null);
+    cancelRef.current = false;
+    addLog(`Starting batch process for ${data.length} readings (chunks of ${CHUNK_SIZE})...`);
 
     try {
-      const res = await fetch("/api/store-stream", {
+      // Step 1: Create lot
+      addLog("Creating lot...");
+      const createRes = await fetch("/api/store-chunk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          readings: data,
-          farmName: "Finca Dorada",
-          origin: "Peru",
-        }),
-        signal: controller.signal,
+        body: JSON.stringify({ action: "create_lot", farmName: "Finca Dorada", origin: "Peru" }),
       });
+      const createData = await createRes.json();
+      if (!createRes.ok) throw new Error(createData.error);
 
-      if (!res.ok || !res.body) {
-        setError("Failed to start batch process");
-        setStatus("error");
-        addLog("Failed to start batch process", "error");
-        return;
-      }
+      const currentLotId = createData.lotId;
+      setLotId(currentLotId);
+      setStatus("storing");
+      console.log(`%c✅ LOT CREATED — ID: ${currentLotId}, TX: ${createData.hash}`, "color: #22c55e");
+      addLog(`Lot #${currentLotId} created — TX: ${createData.hash}`, "success");
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
+      // Step 2: Store readings in chunks
+      let totalStored = 0;
+      for (let i = 0; i < data.length; i += CHUNK_SIZE) {
+        if (cancelRef.current) {
+          addLog("Process cancelled by user", "error");
+          setStatus("idle");
+          return;
+        }
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+        const chunk = data.slice(i, i + CHUNK_SIZE).map((r, idx) => ({ ...r, _index: i + idx }));
+        const chunkRes = await fetch("/api/store-chunk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "store_readings", readings: chunk, lotId: currentLotId }),
+        });
+        const chunkData = await chunkRes.json();
+        if (!chunkRes.ok) throw new Error(chunkData.error);
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const event = JSON.parse(line.slice(6));
-
-            if (event.type === "lot_created") {
-              console.log(`%c✅ LOT CREATED — ID: ${event.lotId}, TX: ${event.hash}`, "color: #22c55e");
-              setLotId(event.lotId);
-              setStatus("storing");
-              addLog(`Lot #${event.lotId} created — TX: ${event.hash}`, "success");
-            } else if (event.type === "reading_stored") {
-              const pct = Math.round(((event.index + 1) / total) * 100);
-              console.log(`%c📝 Reading ${event.index + 1}/${total} (${pct}%) — TX: ${event.hash}`, "color: #60a5fa");
-              setStored(event.index + 1);
-              onReadingStored?.(event.index, event.hash);
-              addLog(`Reading ${event.index + 1}/${total} stored — TX: ${event.hash}`, "success");
-            } else if (event.type === "reading_error") {
-              console.log(`%c❌ Reading ${event.index} FAILED: ${event.error}`, "color: #ef4444");
-              addLog(`Reading ${event.index} failed: ${event.error}`, "error");
-            } else if (event.type === "agent_event") {
-              console.log(`%c🤖 AGENT [${event.step}]: ${event.message}`, event.step === "error" ? "color: #ef4444" : event.step === "scoring" || event.step === "complete" ? "color: #22c55e; font-weight: bold" : "color: #60a5fa");
-              const logType = event.step === "error" ? "error" : event.step === "complete" || event.step === "scoring" ? "success" : "info";
-              addAgentLog(event.message, logType as LogEntry["type"]);
-            } else if (event.type === "analysis_complete") {
-              console.log("%c🎯 AI ANALYSIS COMPLETE", "color: #22c55e; font-size: 14px; font-weight: bold");
-              console.log("%c📊 Public Metadata:", "color: #a855f7; font-weight: bold", event.analysis?.publicMetadata);
-              console.log("%c🔒 Private Metadata:", "color: #f59e0b; font-weight: bold", event.analysis?.privateMetadata);
-              setAnalysis(event.analysis);
-              addLog(`AI Analysis complete — Grade: ${event.analysis?.publicMetadata?.qualityGrade}, Score: ${event.analysis?.publicMetadata?.qualityScore}/100`, "success");
-              addAgentLog(`Analysis complete — metadata ready for NFT minting`, "success");
-            } else if (event.type === "analysis_error") {
-              addLog(`AI Analysis failed: ${event.message}`, "error");
-            } else if (event.type === "complete") {
-              setStored(total);
-              addLog(`All readings stored. Finalizing lot...`);
-              addLog(`Lot finalized — TX: ${event.finalizeHash}`, "success");
-              console.log(`%c✅ LOT FINALIZED — TX: ${event.finalizeHash}`, "color: #22c55e; font-weight: bold");
-
-              // Call agent directly from browser (avoids Netlify timeout)
-              const agentLotId = event.lotId;
-              console.log(`%c🤖 Calling Cocoa Agent for lot ${agentLotId}...`, "color: #3b82f6; font-weight: bold");
-              addAgentLog(`Connecting to Cocoa Agent...`);
-              addAgentLog(`POST /api/analyze-lot — lot ID ${agentLotId}`);
-              addAgentLog(`Agent reading IoT transactions from Privacy Node...`);
-              try {
-                const agentRes = await fetch("/api/analyze-lot", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ lotId: Number(agentLotId) }),
-                });
-                if (agentRes.ok) {
-                  const agentData = await agentRes.json();
-                  const pub = agentData?.publicMetadata;
-                  const priv = agentData?.privateMetadata;
-                  console.log("%c🎯 AI ANALYSIS COMPLETE", "color: #22c55e; font-size: 14px; font-weight: bold");
-                  console.log("%c📊 Public Metadata:", "color: #a855f7; font-weight: bold", pub);
-                  console.log("%c🔒 Private Metadata:", "color: #f59e0b; font-weight: bold", priv);
-                  addAgentLog(`AI analysis complete — Grade: ${pub?.qualityGrade}, Score: ${pub?.qualityScore}/100`, "success");
-                  addAgentLog(`Avg temp: ${pub?.avgTemperature}C, humidity: ${pub?.avgHumidity}%, soil pH: ${pub?.avgSoilPH}`, "info");
-                  addAgentLog(`Price estimate: $${priv?.priceEstimatePerKg}/kg`, "success");
-                  addAgentLog(`IoT data hash: ${priv?.iotDataHash}`, "info");
-                  addAgentLog(`Recommended use: ${pub?.recommendedUse}`, "success");
-                  addAgentLog(`Metadata ready for NFT minting`, "success");
-                  setAnalysis(agentData);
-                  addLog(`AI Analysis: Grade ${pub?.qualityGrade}, Score ${pub?.qualityScore}/100`, "success");
-                } else {
-                  console.log(`%c❌ Agent error: HTTP ${agentRes.status}`, "color: #ef4444");
-                  addAgentLog(`Agent returned HTTP ${agentRes.status}`, "error");
-                }
-              } catch (agentErr: unknown) {
-                const msg = agentErr instanceof Error ? agentErr.message : String(agentErr);
-                console.log(`%c❌ Agent connection failed: ${msg}`, "color: #ef4444");
-                addAgentLog(`Connection failed: ${msg}`, "error");
-              }
-              setStatus("done");
-            } else if (event.type === "error") {
-              setError(event.message);
-              setStatus("error");
-              addLog(`Error: ${event.message}`, "error");
-            } else if (event.type === "status") {
-              addLog(event.message);
-              if (event.message === "Finalizing lot...") {
-                setStatus("finalizing");
-              }
-            }
-          } catch {
-            // skip parse errors
-          }
+        for (const result of chunkData.results) {
+          totalStored++;
+          const pct = Math.round((totalStored / data.length) * 100);
+          console.log(`%c📝 Reading ${totalStored}/${data.length} (${pct}%) — TX: ${result.hash}`, "color: #60a5fa");
+          console.log(`%c⛓️ ON-CHAIN: https://blockscout-privacy-node-0.rayls.com/tx/${result.hash}`, "color: #22c55e");
+          addLog(`Reading ${totalStored}/${data.length} stored — TX: ${result.hash}`, "success");
+          onReadingStored?.(result.index, result.hash);
+          setStored(totalStored);
         }
       }
-    } catch (e: unknown) {
-      if (e instanceof DOMException && e.name === "AbortError") {
-        setStatus("idle");
-        addLog("Process cancelled by user", "error");
-      } else {
-        const msg = e instanceof Error ? e.message : String(e);
-        setError(msg);
-        setStatus("error");
-        addLog(`Error: ${msg}`, "error");
+
+      // Step 3: Finalize
+      addLog("Finalizing lot...");
+      setStatus("finalizing");
+      const finalRes = await fetch("/api/store-chunk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "finalize", lotId: currentLotId }),
+      });
+      const finalData = await finalRes.json();
+      if (!finalRes.ok) throw new Error(finalData.error);
+      console.log(`%c✅ LOT FINALIZED — TX: ${finalData.hash}`, "color: #22c55e; font-weight: bold");
+      addLog(`Lot finalized — TX: ${finalData.hash}`, "success");
+
+      // Step 4: Call agent
+      console.log(`%c🤖 Calling Cocoa Agent for lot ${currentLotId}...`, "color: #3b82f6; font-weight: bold");
+      addAgentLog("Connecting to Cocoa Agent...");
+      addAgentLog(`POST /api/analyze-lot — lot ID ${currentLotId}`);
+      addAgentLog("Agent reading IoT transactions from Privacy Node...");
+
+      try {
+        const agentRes = await fetch("/api/analyze-lot", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lotId: Number(currentLotId) }),
+        });
+        if (agentRes.ok) {
+          const agentData = await agentRes.json();
+          const pub = agentData?.publicMetadata;
+          const priv = agentData?.privateMetadata;
+          console.log("%c🎯 AI ANALYSIS COMPLETE", "color: #22c55e; font-size: 14px; font-weight: bold");
+          console.log("%c📊 Public Metadata:", "color: #a855f7; font-weight: bold", pub);
+          console.log("%c🔒 Private Metadata:", "color: #f59e0b; font-weight: bold", priv);
+          addAgentLog(`AI analysis complete — Grade: ${pub?.qualityGrade}, Score: ${pub?.qualityScore}/100`, "success");
+          addAgentLog(`Avg temp: ${pub?.avgTemperature}C, humidity: ${pub?.avgHumidity}%, soil pH: ${pub?.avgSoilPH}`, "info");
+          addAgentLog(`Price estimate: $${priv?.priceEstimatePerKg}/kg`, "success");
+          addAgentLog(`IoT data hash: ${priv?.iotDataHash}`, "info");
+          addAgentLog(`Recommended use: ${pub?.recommendedUse}`, "success");
+          addAgentLog("Metadata ready for NFT minting", "success");
+          setAnalysis(agentData);
+          addLog(`AI Analysis: Grade ${pub?.qualityGrade}, Score ${pub?.qualityScore}/100`, "success");
+        } else {
+          const errData = await agentRes.json();
+          console.log(`%c❌ Agent error: ${errData.error}`, "color: #ef4444");
+          addAgentLog(`Agent error: ${errData.error || agentRes.status}`, "error");
+        }
+      } catch (agentErr: unknown) {
+        const msg = agentErr instanceof Error ? agentErr.message : String(agentErr);
+        console.log(`%c❌ Agent connection failed: ${msg}`, "color: #ef4444");
+        addAgentLog(`Connection failed: ${msg}`, "error");
       }
+
+      setStatus("done");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.log(`%c❌ Error: ${msg}`, "color: #ef4444");
+      setError(msg);
+      setStatus("error");
+      addLog(`Error: ${msg}`, "error");
     }
-  }, [isConnected, data, total, addLog, onReadingStored]);
+  }, [isConnected, data, addLog, addAgentLog, onReadingStored]);
 
   const handleCancel = useCallback(() => {
-    abortRef.current?.abort();
-    setStatus("idle");
+    cancelRef.current = true;
   }, []);
 
   const isRunning = status === "creating_lot" || status === "storing" || status === "finalizing";
@@ -370,6 +342,7 @@ export function StoragePanel({ data, onReadingStored }: StoragePanelProps) {
           </CardContent>
         </Card>
       )}
+
       {/* Agent Interaction Log */}
       {agentLogs.length > 0 && (
         <Card className="border-blue-500/30 bg-card/50">
