@@ -8,7 +8,7 @@ const stats = [
   {
     icon: TreePalm,
     label: "Farm",
-    value: "Finca Dorada",
+    value: "Finca El Llano",
     sub: "Fine Cacao Producer",
   },
   {
