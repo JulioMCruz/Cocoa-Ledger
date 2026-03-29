@@ -164,10 +164,9 @@ function MarketplaceContent() {
       addLog(`Starting purchase for Lot #${tokenId}...`);
       addLog(`Buyer: ${address}`);
 
-      // SSE stream: connect directly to marketplace server (Netlify serverless can't stream long SSE)
-      const MARKETPLACE_DIRECT = process.env.NEXT_PUBLIC_MARKETPLACE_URL || "http://46.225.67.25:3000";
+      // SSE stream: via Netlify edge proxy (HTTPS, no timeout, supports SSE)
       const evtSource = new EventSource(
-        `${MARKETPLACE_DIRECT}/api/cacao-market/lot/${tokenId}/purchase-stream?buyer=${address}`
+        `/marketplace-api/lot/${tokenId}/purchase-stream?buyer=${address}`
       );
 
       evtSource.onmessage = async (event) => {
