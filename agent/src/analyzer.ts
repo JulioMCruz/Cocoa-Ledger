@@ -136,12 +136,58 @@ ${deviceStats
 ## Raw Readings
 ${readingSummary}
 
+## Scoring Methodology (MUST follow this)
+The qualityScore is a WEIGHTED AVERAGE of 5 sub-scores:
+
+1. FLAVOR/SENSORY POTENTIAL (30% weight): Score 0-100
+   - Based on environmental conditions that produce fine flavor cacao
+   - Temperature 20-28°C and humidity 75-90% → optimal flavor development
+   - Soil pH 5.0-7.0 → ideal nutrient absorption
+
+2. PROCESSING READINESS (25% weight): Score 0-100
+   - Soil moisture consistency → even fermentation potential
+   - Light exposure patterns → maturity indicators
+   - Rainfall regularity → harvest timing
+
+3. IoT DATA QUALITY (20% weight): Score 0-100
+   - Number of readings (more = higher confidence)
+   - Sensor consistency across devices
+   - Data completeness and anomaly rate
+   - NOTE: This data is immutable on-chain — it cannot be falsified
+
+4. FARM ENVIRONMENT (15% weight): Score 0-100
+   - Temperature stability (low variance = good)
+   - Humidity within cacao-growing range
+   - Soil pH stability
+   - GPS consistency (readings from same area)
+
+5. DISEASE RISK (10% weight): Score 0-100 (100 = no risk)
+   - High humidity + high temperature = monilia risk
+   - pH anomalies = nutrient deficiency risk
+   - Sudden environmental changes = stress indicators
+
+GRADES:
+- S (95-100): Exceptional — top 1% of cacao
+- A (85-94): Premium Fine Flavor — 50-80% price premium
+- B (70-84): Fine Flavor — 25-50% premium
+- C (50-69): Standard — 0-25% premium
+- D (0-49): Below Standard — REJECTED
+
 ## Required Output
 Respond with ONLY a JSON object (no markdown, no code fences, just raw JSON):
 
 {
   "qualityGrade": "S|A|B|C|D",
   "qualityScore": 0-100,
+  "scoreBreakdown": {
+    "flavorScore": 0-100,
+    "processingScore": 0-100,
+    "iotScore": 0-100,
+    "farmScore": 0-100,
+    "diseaseScore": 0-100
+  },
+  "premiumRecommendation": "e.g. 45-60%",
+  "originVerified": true,
   "cropHealthAssessment": "2-3 sentences",
   "regionSummary": "1-2 sentences",
   "harvestAssessment": "1-2 sentences",
@@ -151,10 +197,7 @@ Respond with ONLY a JSON object (no markdown, no code fences, just raw JSON):
   "priceEstimatePerKg": 0.00,
   "labQualityAnalysis": "detailed paragraph",
   "producerRecommendations": "actionable recommendations"
-}
-
-Grading: S (95-100) exceptional, A (85-94) excellent, B (70-84) good, C (50-69) fair, D (0-49) poor.
-Consider: temperature stability (ideal 20-30C), humidity (ideal 70-90%), soil pH (ideal 5.0-7.5), rainfall patterns.`;
+}`;
 }
 
 export async function analyzeLot(
@@ -187,6 +230,15 @@ export async function analyzeLot(
   const publicMetadata: PublicMetadata = {
     qualityGrade: aiResult.qualityGrade,
     qualityScore: aiResult.qualityScore,
+    scoreBreakdown: {
+      flavorScore: aiResult.scoreBreakdown?.flavorScore ?? 0,
+      processingScore: aiResult.scoreBreakdown?.processingScore ?? 0,
+      iotScore: aiResult.scoreBreakdown?.iotScore ?? 0,
+      farmScore: aiResult.scoreBreakdown?.farmScore ?? 0,
+      diseaseScore: aiResult.scoreBreakdown?.diseaseScore ?? 0,
+    },
+    premiumRecommendation: aiResult.premiumRecommendation || "0%",
+    originVerified: aiResult.originVerified ?? true,
     avgTemperature: averages.avgTemperature,
     avgHumidity: averages.avgHumidity,
     avgSoilPH: averages.avgSoilPH,

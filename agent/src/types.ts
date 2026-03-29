@@ -64,9 +64,20 @@ export interface Anomaly {
   severity: "low" | "medium" | "high";
 }
 
+export interface ScoreBreakdown {
+  flavorScore: number;      // 30% weight — sensory profile consistency
+  processingScore: number;  // 25% weight — fermentation, drying, humidity
+  iotScore: number;         // 20% weight — environmental data consistency
+  farmScore: number;        // 15% weight — experience, certifications, altitude
+  diseaseScore: number;     // 10% weight — disease risk assessment
+}
+
 export interface PublicMetadata {
   qualityGrade: "S" | "A" | "B" | "C" | "D";
   qualityScore: number;
+  scoreBreakdown: ScoreBreakdown;
+  premiumRecommendation: string;  // e.g. "45-60%"
+  originVerified: boolean;
   avgTemperature: number;
   avgHumidity: number;
   avgSoilPH: number;
