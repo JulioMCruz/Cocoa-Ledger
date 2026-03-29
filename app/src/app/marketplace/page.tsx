@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAccount } from "wagmi";
-import { parseEther, createWalletClient, custom } from "viem";
-import { raylsPublicChain } from "@/lib/chain";
+// ethers imported dynamically in purchase handler
 import { Header } from "@/components/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -151,7 +150,6 @@ function MarketplaceContent() {
         return;
       }
 
-      // Get wallet provider from window.ethereum
       const ethereum = (window as any).ethereum;
       if (!ethereum) {
         setError("No wallet detected. Install MetaMask or another wallet.");
@@ -166,70 +164,12 @@ function MarketplaceContent() {
       addLog(`Starting purchase for Lot #${tokenId}...`);
       addLog(`Buyer: ${address}`);
 
-      // Step 1: Request wallet approval — real on-chain TX
-      addLog("💰 Requesting wallet approval for 0.001 USDr...");
-      let paymentTxHash: string;
-      try {
-        // Switch to Public Chain if needed
-        if (chainId !== 7295799) {
-          addLog("Switching to Rayls Public Chain...");
-          try {
-            await ethereum.request({
-              method: "wallet_switchEthereumChain",
-              params: [{ chainId: "0x" + (7295799).toString(16) }],
-            });
-          } catch (switchErr: any) {
-            // Chain not added — add it
-            if (switchErr.code === 4902) {
-              await ethereum.request({
-                method: "wallet_addEthereumChain",
-                params: [{
-                  chainId: "0x" + (7295799).toString(16),
-                  chainName: "Rayls Public Chain",
-                  nativeCurrency: { name: "USDr", symbol: "USDr", decimals: 18 },
-                  rpcUrls: ["https://testnet-rpc.rayls.com"],
-                  blockExplorerUrls: ["https://testnet-explorer.rayls.com"],
-                }],
-              });
-            }
-          }
-          await new Promise((r) => setTimeout(r, 1500));
-        }
-
-        // Send payment TX via eth_sendTransaction
-        paymentTxHash = await ethereum.request({
-          method: "eth_sendTransaction",
-          params: [{
-            from: address,
-            to: ATTESTATION_ADDRESS,
-            value: "0x" + parseEther(PURCHASE_PRICE).toString(16),
-          }],
-        });
-        addLog(`✅ Payment TX signed: ${paymentTxHash}`, "success", paymentTxHash, `https://testnet-explorer.rayls.com/tx/${paymentTxHash}`);
-        console.log(`%c💰 PAYMENT TX: ${paymentTxHash}`, "color: #f59e0b; font-size: 12px; font-weight: bold");
-        console.log(`%c🔗 https://testnet-explorer.rayls.com/tx/${paymentTxHash}`, "color: #f59e0b");
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : String(e);
-        if (msg.includes("rejected") || msg.includes("denied") || msg.includes("4001")) {
-          addLog("❌ Transaction rejected by user", "error");
-          setError("Transaction rejected");
-        } else {
-          addLog(`❌ Payment failed: ${msg.slice(0, 80)}`, "error");
-          setError(msg.slice(0, 80));
-        }
-        setPurchasing(false);
-        return;
-      }
-
-      // Step 2: After payment confirmed, proceed with NFT mint + bridge
-      addLog("Connecting to Rayls blockchain for NFT mint...");
-
-      // Use SSE purchase-stream for real-time logs
+      // SSE stream: server does mint → bridge → relayer → approve → list → sign event
       const evtSource = new EventSource(
         `/api/marketplace/lot/${tokenId}/purchase-stream?buyer=${address}`
       );
 
-      evtSource.onmessage = (event) => {
+      evtSource.onmessage = async (event) => {
         try {
           const data = JSON.parse(event.data);
 
@@ -246,6 +186,89 @@ function MarketplaceContent() {
           } else if (data.type === "error") {
             addLog(data.message, "error");
             setError(data.message);
+            setPurchasing(false);
+            evtSource.close();
+
+          } else if (data.type === "sign") {
+            // Server finished mint + bridge + list — now user signs buy() in wallet
+            evtSource.close();
+            addLog("🔑 Please sign the purchase in your wallet...", "info");
+
+            try {
+              // Switch to Public Chain if needed
+              try {
+                await ethereum.request({
+                  method: "wallet_switchEthereumChain",
+                  params: [{ chainId: "0x" + (7295799).toString(16) }],
+                });
+              } catch (switchErr: any) {
+                if (switchErr.code === 4902) {
+                  await ethereum.request({
+                    method: "wallet_addEthereumChain",
+                    params: [{
+                      chainId: "0x" + (7295799).toString(16),
+                      chainName: "Rayls Public Chain",
+                      nativeCurrency: { name: "USDr", symbol: "USDr", decimals: 18 },
+                      rpcUrls: ["https://testnet-rpc.rayls.com"],
+                      blockExplorerUrls: ["https://testnet-explorer.rayls.com"],
+                    }],
+                  });
+                }
+              }
+              await new Promise((r) => setTimeout(r, 1000));
+
+              // Call Marketplace.buy(listingId) via MetaMask
+              const { ethers } = await import("ethers");
+              const provider = new ethers.BrowserProvider(ethereum);
+              const signer = await provider.getSigner();
+              const marketplace = new ethers.Contract(
+                data.marketplaceAddress,
+                ["function buy(uint256) payable"],
+                signer
+              );
+
+              addLog(`Signing buy(${data.listingId}) on Marketplace.sol...`, "info");
+              const tx = await marketplace.buy(data.listingId, {
+                value: data.price,
+                gasLimit: 200000,
+              });
+              addLog(`TX sent: ${tx.hash.slice(0, 20)}...`, "info");
+
+              const receipt = await tx.wait();
+              const buyExplorer = `https://testnet-explorer.rayls.com/tx/${receipt.hash}`;
+              addLog(`✅ Purchase confirmed on-chain!`, "success", receipt.hash, buyExplorer);
+              console.log(`%c💰 BUY TX: ${receipt.hash}`, "color: #f59e0b; font-size: 12px; font-weight: bold");
+
+              // Confirm purchase → reveal data
+              addLog("Revealing private data...", "info");
+              const confRes = await fetch(`/api/marketplace/lot/${tokenId}/purchase`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ buyerAddress: address, txHash: receipt.hash }),
+              });
+              const confData = await confRes.json();
+
+              if (confData.success && confData.fullMetadata) {
+                addLog("🔓 Private data revealed!", "success");
+                setRevealedData({
+                  ...confData.fullMetadata,
+                  purchaseTxHash: receipt.hash,
+                  purchaseExplorer: buyExplorer,
+                  nftTokenId: data.nftTokenId,
+                } as RevealedData);
+                setLots((prev) =>
+                  prev.map((l) =>
+                    l.tokenId === tokenId ? { ...l, status: "revealed" } : l
+                  )
+                );
+              }
+            } catch (signErr: any) {
+              const msg = signErr.code === 4001 ? "Transaction rejected by user" : (signErr.message?.slice(0, 80) || "Sign failed");
+              addLog(`❌ ${msg}`, "error");
+              setError(msg);
+            }
+            setPurchasing(false);
+
           } else if (data.type === "complete") {
             addLog("🔓 Purchase complete — private data revealed!", "success");
             if (data.fullMetadata) {
@@ -266,7 +289,7 @@ function MarketplaceContent() {
             evtSource.close();
           }
         } catch {
-          // ignore parse errors
+          // ignore
         }
       };
 
@@ -276,7 +299,7 @@ function MarketplaceContent() {
         evtSource.close();
       };
     },
-    [address, addLog]
+    [address, isConnected, addLog]
   );
 
   if (loading) {
