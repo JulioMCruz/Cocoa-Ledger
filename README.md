@@ -134,35 +134,36 @@ When a chocolate manufacturer buys this NFT, they're buying **verified, data-bac
 
 ```mermaid
 graph TB
-    subgraph "App 1 — Farmer Dashboard"
-        A[IoT Devices] -->|sensor data| B[Farmer App]
-        B -->|store readings| C[Rayls Privacy Node]
-        C -->|lot finalized| D[Trigger Agent]
+    subgraph "App 1 — Farmer Dashboard (Netlify)"
+        A[IoT Devices - simulated CSV] -->|sensor data| B[NextJS Frontend]
+        B -->|chunked API calls| C[Netlify Server Functions]
+        C -->|auto-signed TX, gasless| D[Rayls Privacy Node]
+        D -->|lot finalized| E[Trigger Agent via proxy]
     end
 
-    subgraph "App 2 — AI Oracle Agent"
-        D -->|lot ID| E[Read Blockchain]
-        E -->|raw IoT data| F[AI Analysis - Gemini]
-        F -->|quality metadata| G[Return Results]
+    subgraph "App 2 — Cocoa Agent (VPS)"
+        E -->|POST /api/analyze-lot| F[Read all TX from blockchain]
+        F -->|raw IoT data| G[Google Gemini 2.5 AI]
+        G -->|quality metadata| H[Return public + private data]
     end
 
     subgraph "App 3 — NFT Marketplace"
-        G -->|public + private metadata| H[Mint NFT]
-        H -->|list on marketplace| I[Public Chain]
-        I -->|buy NFT| J[Reveal Private Data]
+        H -->|metadata| I[Mint Confidential NFT]
+        I -->|bridge to public| J[Public Chain Marketplace]
+        J -->|investor buys| K[Reveal Private Data]
     end
 
     subgraph "Rayls Infrastructure"
-        C --- K[Privacy Node - Chain 800000]
-        I --- L[Public Chain - Chain 7295799]
-        K <-->|bridge / relayer| L
+        D --- L[Privacy Node - Chain 800000 - Gasless]
+        J --- M[Public Chain - Chain 7295799 - USDr gas]
+        L <-->|relayer - lock/mint| M
     end
 
     style A fill:#22c55e,color:#000
-    style F fill:#3b82f6,color:#fff
-    style H fill:#a855f7,color:#fff
-    style K fill:#1e293b,color:#fff
+    style G fill:#3b82f6,color:#fff
+    style I fill:#a855f7,color:#fff
     style L fill:#1e293b,color:#fff
+    style M fill:#1e293b,color:#fff
 ```
 
 ## Data Flow
@@ -219,40 +220,55 @@ graph TB
 sequenceDiagram
     actor Farmer
     participant App as App 1 - Farmer Dashboard
+    participant API as Netlify API (server-side)
     participant PN as Rayls Privacy Node
-    participant Agent as App 2 - AI Oracle
+    participant Agent as App 2 - Cocoa Agent
     participant Market as App 3 - Marketplace
 
-    Farmer->>App: Connect wallet
-    App-->>Farmer: Show dashboard
+    Farmer->>App: Connect wallet (RainbowKit)
+    App-->>Farmer: Redirect to dashboard
 
+    Farmer->>App: Select dataset (10/50/100/1000 readings)
     Farmer->>App: Click "Read IoT Farm Devices"
-    App->>App: Load sensor data (CSV simulation)
-    App-->>Farmer: Display 1000 IoT readings
+    App->>App: Load CSV, generate Job ID
+    App-->>Farmer: Display IoT readings in table
 
     Farmer->>App: Click "Store on Privacy Node"
-    App->>PN: createLot("Finca Dorada", "Peru")
-    PN-->>App: Lot ID created
+    App->>API: POST /api/store-chunk {action: create_lot}
+    API->>PN: createLot("Finca Dorada", "Peru")
+    PN-->>API: Lot ID + TX hash
+    API-->>App: Lot created
+    App-->>Farmer: Show lot ID in progress panel
 
-    loop For each IoT reading
-        App->>PN: storeReading(lotId, deviceId, temp, humidity, ...)
-        PN-->>App: TX hash confirmed
-        App-->>Farmer: Update progress bar + table status
+    loop Chunks of 5 readings
+        App->>API: POST /api/store-chunk {action: store_readings, chunk}
+        API->>PN: storeReading() x5 (auto-signed, gasless)
+        PN-->>API: TX hashes confirmed
+        API-->>App: Chunk results
+        App-->>Farmer: Update progress bar + table row status (green checkmarks)
     end
 
-    App->>PN: finalizeLot(lotId)
-    PN-->>App: Lot finalized
+    App->>API: POST /api/store-chunk {action: finalize}
+    API->>PN: finalizeLot(lotId)
+    PN-->>API: TX hash
+    API-->>App: Lot finalized
+    App-->>Farmer: Show "Lot finalized" in process log
 
-    App->>Agent: POST /api/analyze-lot {lotId}
+    Note over App,Agent: Agent Interaction Phase
+    App->>API: POST /api/analyze-lot {lotId}
+    API->>Agent: Forward to Cocoa Agent
     Agent->>PN: Read all readings for lot
-    PN-->>Agent: Return IoT data
-    Agent->>Agent: AI analysis (Gemini)
-    Agent-->>App: Quality metadata (Grade A, Score 93, ...)
-    App-->>Farmer: Display AI analysis results
+    PN-->>Agent: Return IoT data (all readings)
+    Agent->>Agent: Compute averages, per-device stats
+    Agent->>Agent: AI analysis (Google Gemini 2.5)
+    Agent-->>API: Quality metadata (public + private)
+    API-->>App: Analysis results
+    App-->>Farmer: Display Cocoa Agent log + AI Quality Analysis card
 
+    Note over Agent,Market: NFT Phase (App 3)
     Agent->>Market: POST metadata for NFT minting
-    Market->>PN: Mint confidential NFT
-    Market->>Market: List on public marketplace
+    Market->>PN: Mint confidential NFT with private metadata
+    Market->>Market: Bridge to public chain + list on marketplace
 ```
 
 ## Investor Journey
@@ -292,47 +308,97 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    participant App as Farmer App
+    participant Client as Browser Client
+    participant API as Netlify API
     participant Data as CocoaLedgerData.sol
-    participant Token as CocoaLedgerToken.sol
-    participant NFT as CocoaLedgerNFT.sol
+    participant Agent as Cocoa Agent
     participant Attest as Attestation.sol
+    participant NFT as CocoaLedgerNFT.sol
     participant Market as Marketplace.sol
 
-    Note over App,Data: Phase 1 — Store IoT Data (Privacy Node)
-    App->>Data: createLot(farmName, origin)
-    loop 1000 readings
-        App->>Data: storeReading(lotId, deviceId, temp, ...)
+    Note over Client,Data: Phase 1 — Store IoT Data (Privacy Node, gasless)
+    Client->>API: POST /api/store-chunk {create_lot}
+    API->>Data: createLot(farmName, origin)
+    Data-->>API: lotId
+
+    loop Chunks of 5 readings (no timeout)
+        Client->>API: POST /api/store-chunk {store_readings, chunk}
+        API->>Data: storeReading() x5 (auto-signed)
+        Data-->>API: TX hashes
+        API-->>Client: chunk results + progress
     end
-    App->>Data: finalizeLot(lotId)
 
-    Note over App,Attest: Phase 2 — AI Attestation (Public Chain)
-    App->>Attest: attest(token, approved, reason, score)
+    Client->>API: POST /api/store-chunk {finalize}
+    API->>Data: finalizeLot(lotId)
 
-    Note over App,NFT: Phase 3 — Mint & Bridge (Privacy → Public)
-    App->>NFT: mint(to, tokenId)
-    App->>NFT: teleportToPublicChain(to, tokenId, chainId)
+    Note over Client,Agent: Phase 2 — AI Analysis (Cocoa Agent)
+    Client->>API: POST /api/analyze-lot {lotId}
+    API->>Agent: Forward request
+    Agent->>Data: Read all readings from blockchain
+    Agent->>Agent: AI quality analysis (Gemini 2.5)
+    Agent-->>API: Public + Private metadata
+    API-->>Client: Display analysis results
 
-    Note over App,Market: Phase 4 — List & Trade (Public Chain)
-    App->>Market: list(token, assetType, tokenId, amount, price)
-    App->>Market: buy(listingId)
+    Note over Agent,Attest: Phase 3 — On-chain Attestation (Public Chain)
+    Agent->>Attest: attest(token, approved, reason, score)
+
+    Note over Agent,NFT: Phase 4 — Mint & Bridge (Privacy → Public)
+    Agent->>NFT: mint(to, tokenId)
+    NFT->>NFT: teleportToPublicChain(to, tokenId, chainId)
+
+    Note over NFT,Market: Phase 5 — List & Trade (Public Chain)
+    Market->>Market: list(token, assetType, tokenId, amount, price)
+    Market->>Market: buy(listingId) → reveal private data
 ```
+
+## Technical Details
+
+### Chunked Transaction Processing
+The app stores IoT readings in **chunks of 5** to avoid serverless function timeouts:
+- Each chunk is a separate API call (~5-8 seconds)
+- Server-side auto-signing (no MetaMask popups for 1000 transactions)
+- Privacy Node is gasless — zero transaction fees
+- Progress updates after each chunk completes
+- Cancel support between chunks
+
+### Three Log Sections
+1. **Process Log** — Every blockchain transaction with clickable Blockscout links
+2. **Cocoa Agent Interaction** — AI agent connection, analysis steps, scoring details
+3. **AI Quality Analysis Card** — Grade, score, price estimate, recommendations
+
+### Browser Console Logs
+Detailed colored console output for judges — every step is logged with emojis and clickable explorer links.
 
 ## Project Structure
 
 ```
 cocoa-ledger/
-├── app/                    ← NextJS farmer dashboard
-│   ├── src/app/            ← Landing page + dashboard
-│   ├── src/components/     ← UI components
-│   └── public/             ← IoT CSV data
-├── agent/                  ← AI oracle service
-│   ├── src/                ← Express API + Gemini analysis
-│   ├── skills/             ← ETHSkills references
-│   └── Dockerfile          ← Container deployment
-└── contracts/              ← Foundry smart contracts
-    ├── src/                ← CocoaLedger contracts
-    └── script/             ← Deploy and interaction scripts
+├── app/                         ← NextJS farmer dashboard (Netlify)
+│   ├── src/app/page.tsx         ← Landing page (hero, CTA)
+│   ├── src/app/dashboard/       ← Authenticated dashboard
+│   ├── src/app/api/             ← Server API routes
+│   │   ├── store-chunk/         ← Chunked blockchain storage
+│   │   ├── store-stream/        ← SSE streaming (fallback)
+│   │   └── analyze-lot/         ← Agent proxy (HTTPS → HTTP)
+│   ├── src/components/          ← UI: table, storage panel, logs
+│   ├── src/lib/                 ← Chain config, contract ABI, types
+│   └── public/                  ← IoT CSV datasets (10/50/100/1000)
+├── agent/                       ← Cocoa Agent — AI oracle (VPS)
+│   ├── src/index.ts             ← Express server
+│   ├── src/blockchain.ts        ← Read from Privacy Node
+│   ├── src/analyzer.ts          ← Gemini AI analysis
+│   ├── src/types.ts             ← TypeScript types
+│   ├── skills/                  ← ETHSkills (standards, security)
+│   ├── Dockerfile               ← Container deployment
+│   └── README.md                ← OpenClaw agent setup guide
+├── contracts/                   ← Foundry smart contracts
+│   ├── src/CocoaLedgerData.sol  ← IoT storage (lots, readings)
+│   ├── src/CocoaLedgerToken.sol ← Bridgeable ERC20
+│   ├── src/CocoaLedgerNFT.sol   ← Bridgeable ERC721
+│   ├── src/Attestation.sol      ← AI attestation registry
+│   ├── src/Marketplace.sol      ← Escrow marketplace
+│   └── script/                  ← Deploy scripts
+└── docs/                        ← Deployment and technical guides
 ```
 
 ## Tech Stack
