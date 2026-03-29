@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAccount } from "wagmi";
-import { AuthGuard } from "@/components/auth-guard";
 import { Header } from "@/components/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -69,20 +68,18 @@ const GRADE_COLORS: Record<string, string> = {
 
 export default function MarketplacePage() {
   return (
-    <AuthGuard>
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">
-          <MarketplaceContent />
-        </main>
-        <footer className="mt-auto border-t border-border/30 py-4">
-          <div className="mx-auto max-w-6xl px-4 text-center text-xs text-muted-foreground sm:px-6">
-            🏪 Cocoa Ledger Marketplace — Confidential NFT Trading ·
-            Hackathon 2026 · <span className="font-mono">v{APP_VERSION}</span>
-          </div>
-        </footer>
-      </div>
-    </AuthGuard>
+    <div className="flex min-h-screen flex-col bg-background">
+      <Header />
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">
+        <MarketplaceContent />
+      </main>
+      <footer className="mt-auto border-t border-border/30 py-4">
+        <div className="mx-auto max-w-6xl px-4 text-center text-xs text-muted-foreground sm:px-6">
+          🏪 Cocoa Ledger Marketplace — Confidential NFT Trading ·
+          Hackathon 2026 · <span className="font-mono">v{APP_VERSION}</span>
+        </div>
+      </footer>
+    </div>
   );
 }
 
