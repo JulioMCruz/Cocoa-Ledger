@@ -106,9 +106,7 @@ export function StoragePanel({ data, onReadingStored }: StoragePanelProps) {
             } else if (event.type === "reading_stored") {
               setStored(event.index + 1);
               onReadingStored?.(event.index, event.hash);
-              if ((event.index + 1) % 10 === 0 || event.index === 0 || event.index === total - 1) {
-                addLog(`Reading ${event.index + 1}/${total} stored — TX: ${event.hash}`);
-              }
+              addLog(`Reading ${event.index + 1}/${total} stored — TX: ${event.hash}`, "success");
             } else if (event.type === "reading_error") {
               addLog(`Reading ${event.index} failed: ${event.error}`, "error");
             } else if (event.type === "complete") {
@@ -257,23 +255,44 @@ export function StoragePanel({ data, onReadingStored }: StoragePanelProps) {
                 {logs.length} entries
               </Badge>
             </div>
-            <div className="max-h-64 overflow-y-auto rounded-lg bg-black/40 p-3 font-mono text-xs leading-relaxed">
-              {logs.map((log, i) => (
-                <div key={i} className="flex gap-2">
-                  <span className="text-muted-foreground/50 shrink-0">[{log.time}]</span>
-                  <span
-                    className={
-                      log.type === "success"
-                        ? "text-emerald-400"
-                        : log.type === "error"
-                          ? "text-red-400"
-                          : "text-muted-foreground"
-                    }
-                  >
-                    {log.message}
-                  </span>
-                </div>
-              ))}
+            <div className="max-h-96 overflow-y-auto rounded-lg bg-black/40 p-3 font-mono text-xs leading-relaxed">
+              {logs.map((log, i) => {
+                const txMatch = log.message.match(/TX: (0x[a-fA-F0-9]+)/);
+                const beforeTx = txMatch ? log.message.slice(0, txMatch.index) : log.message;
+                const txHash = txMatch ? txMatch[1] : null;
+                const afterTx = txMatch ? log.message.slice((txMatch.index || 0) + txMatch[0].length) : "";
+
+                return (
+                  <div key={i} className="flex gap-2">
+                    <span className="text-muted-foreground/50 shrink-0">[{log.time}]</span>
+                    <span
+                      className={
+                        log.type === "success"
+                          ? "text-emerald-400"
+                          : log.type === "error"
+                            ? "text-red-400"
+                            : "text-muted-foreground"
+                      }
+                    >
+                      {beforeTx}
+                      {txHash && (
+                        <>
+                          TX:{" "}
+                          <a
+                            href={`https://blockscout-privacy-node-0.rayls.com/tx/${txHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline hover:text-emerald-300 transition-colors"
+                          >
+                            {txHash.slice(0, 10)}...{txHash.slice(-8)}
+                          </a>
+                        </>
+                      )}
+                      {afterTx}
+                    </span>
+                  </div>
+                );
+              })}
               <div ref={logEndRef} />
             </div>
           </CardContent>
