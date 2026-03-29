@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useAccount, useWalletClient } from "wagmi";
-import { parseEther } from "viem";
+import { useAccount } from "wagmi";
+import { parseEther, createWalletClient, custom } from "viem";
+import { raylsPublicChain } from "@/lib/chain";
 import { Header } from "@/components/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -106,8 +107,7 @@ const ATTESTATION_ADDRESS = "0x0Ee606d003e5E519CCcEA3e37c748B11d0cFE61e" as cons
 const PURCHASE_PRICE = "0.001"; // 0.001 USDr
 
 function MarketplaceContent() {
-  const { address, chainId } = useAccount();
-  const { data: walletClient } = useWalletClient();
+  const { address, chainId, isConnected } = useAccount();
 
   const [lots, setLots] = useState<CacaoLot[]>([]);
   const [loading, setLoading] = useState(true);
@@ -146,8 +146,15 @@ function MarketplaceContent() {
 
   const handlePurchase = useCallback(
     async (tokenId: number) => {
-      if (!address || !walletClient) {
+      if (!address || !isConnected) {
         setError("Connect your wallet first");
+        return;
+      }
+
+      // Get wallet provider from window.ethereum
+      const ethereum = (window as any).ethereum;
+      if (!ethereum) {
+        setError("No wallet detected. Install MetaMask or another wallet.");
         return;
       }
 
@@ -166,21 +173,44 @@ function MarketplaceContent() {
         // Switch to Public Chain if needed
         if (chainId !== 7295799) {
           addLog("Switching to Rayls Public Chain...");
-          await walletClient.switchChain({ id: 7295799 });
+          try {
+            await ethereum.request({
+              method: "wallet_switchEthereumChain",
+              params: [{ chainId: "0x" + (7295799).toString(16) }],
+            });
+          } catch (switchErr: any) {
+            // Chain not added — add it
+            if (switchErr.code === 4902) {
+              await ethereum.request({
+                method: "wallet_addEthereumChain",
+                params: [{
+                  chainId: "0x" + (7295799).toString(16),
+                  chainName: "Rayls Public Chain",
+                  nativeCurrency: { name: "USDr", symbol: "USDr", decimals: 18 },
+                  rpcUrls: ["https://testnet-rpc.rayls.com"],
+                  blockExplorerUrls: ["https://testnet-explorer.rayls.com"],
+                }],
+              });
+            }
+          }
           await new Promise((r) => setTimeout(r, 1500));
         }
 
-        paymentTxHash = await walletClient.sendTransaction({
-          to: ATTESTATION_ADDRESS,
-          value: parseEther(PURCHASE_PRICE),
-          chain: { id: 7295799, name: "Rayls Public Chain", nativeCurrency: { name: "USDr", symbol: "USDr", decimals: 18 }, rpcUrls: { default: { http: ["/api/rpc/public"] } } },
+        // Send payment TX via eth_sendTransaction
+        paymentTxHash = await ethereum.request({
+          method: "eth_sendTransaction",
+          params: [{
+            from: address,
+            to: ATTESTATION_ADDRESS,
+            value: "0x" + parseEther(PURCHASE_PRICE).toString(16),
+          }],
         });
         addLog(`✅ Payment TX signed: ${paymentTxHash}`, "success", paymentTxHash, `https://testnet-explorer.rayls.com/tx/${paymentTxHash}`);
         console.log(`%c💰 PAYMENT TX: ${paymentTxHash}`, "color: #f59e0b; font-size: 12px; font-weight: bold");
         console.log(`%c🔗 https://testnet-explorer.rayls.com/tx/${paymentTxHash}`, "color: #f59e0b");
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
-        if (msg.includes("rejected") || msg.includes("denied")) {
+        if (msg.includes("rejected") || msg.includes("denied") || msg.includes("4001")) {
           addLog("❌ Transaction rejected by user", "error");
           setError("Transaction rejected");
         } else {
