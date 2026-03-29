@@ -67,6 +67,26 @@ export async function POST(req: NextRequest) {
         send({ type: "status", message: "Finalizing lot...", progress: 100 });
         const finalizeTx = await contract.finalizeLot(lotId);
         await finalizeTx.wait();
+        // Trigger AI agent analysis
+        send({ type: "status", message: "Triggering AI agent analysis...", progress: 100 });
+        try {
+          const agentUrl = process.env.AGENT_URL || "http://46.225.67.25:3001";
+          const analysisRes = await fetch(`${agentUrl}/api/analyze-lot`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ lotId: Number(lotId) }),
+          });
+          if (analysisRes.ok) {
+            const analysis = await analysisRes.json();
+            send({ type: "analysis_complete", lotId: lotId.toString(), analysis });
+          } else {
+            send({ type: "analysis_error", message: `Agent returned ${analysisRes.status}` });
+          }
+        } catch (agentErr: unknown) {
+          const agentMsg = agentErr instanceof Error ? agentErr.message : String(agentErr);
+          send({ type: "analysis_error", message: agentMsg });
+        }
+
         send({ type: "complete", lotId: lotId.toString(), finalizeHash: finalizeTx.hash, stored: total });
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);

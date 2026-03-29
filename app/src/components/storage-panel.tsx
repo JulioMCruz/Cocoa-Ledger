@@ -36,6 +36,7 @@ export function StoragePanel({ data, onReadingStored }: StoragePanelProps) {
   const [lotId, setLotId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [analysis, setAnalysis] = useState<Record<string, unknown> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const total = data.length;
@@ -109,6 +110,11 @@ export function StoragePanel({ data, onReadingStored }: StoragePanelProps) {
               addLog(`Reading ${event.index + 1}/${total} stored — TX: ${event.hash}`, "success");
             } else if (event.type === "reading_error") {
               addLog(`Reading ${event.index} failed: ${event.error}`, "error");
+            } else if (event.type === "analysis_complete") {
+              setAnalysis(event.analysis);
+              addLog(`AI Analysis complete — Grade: ${event.analysis?.publicMetadata?.qualityGrade}, Score: ${event.analysis?.publicMetadata?.qualityScore}/100`, "success");
+            } else if (event.type === "analysis_error") {
+              addLog(`AI Analysis failed: ${event.message}`, "error");
             } else if (event.type === "complete") {
               setStored(total);
               setStatus("finalizing");
@@ -298,6 +304,53 @@ export function StoragePanel({ data, onReadingStored }: StoragePanelProps) {
           </CardContent>
         </Card>
       )}
+      {/* AI Analysis Results */}
+      {analysis && (() => {
+        const pub = (analysis as Record<string, unknown>).publicMetadata as Record<string, unknown> | undefined;
+        const priv = (analysis as Record<string, unknown>).privateMetadata as Record<string, unknown> | undefined;
+        return (
+          <Card className="border-emerald-500/30 bg-card/50">
+            <CardContent className="p-4 sm:p-6 space-y-4">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                <h3 className="text-sm font-medium uppercase tracking-wider text-emerald-400">
+                  AI Quality Analysis
+                </h3>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="rounded-lg bg-black/20 p-3 text-center">
+                  <div className="text-3xl font-bold text-emerald-400">
+                    {String(pub?.qualityGrade ?? "-")}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Quality Grade</div>
+                </div>
+                <div className="rounded-lg bg-black/20 p-3 text-center">
+                  <div className="text-3xl font-bold text-foreground">
+                    {String(pub?.qualityScore ?? "-")}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Score /100</div>
+                </div>
+                <div className="rounded-lg bg-black/20 p-3 text-center">
+                  <div className="text-3xl font-bold text-foreground">
+                    ${String(priv?.priceEstimatePerKg ?? "-")}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Price/kg</div>
+                </div>
+                <div className="rounded-lg bg-black/20 p-3 text-center">
+                  <div className="text-3xl font-bold text-foreground">
+                    {String((analysis as Record<string, unknown>).readingsCount ?? "-")}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Readings</div>
+                </div>
+              </div>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p><span className="font-medium text-foreground">Recommended Use:</span> {String(pub?.recommendedUse ?? "")}</p>
+                <p><span className="font-medium text-foreground">Crop Health:</span> {String(pub?.cropHealthAssessment ?? "")}</p>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
     </div>
   );
 }
