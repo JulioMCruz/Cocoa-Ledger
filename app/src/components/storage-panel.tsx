@@ -20,6 +20,7 @@ import Link from "next/link";
 interface StoragePanelProps {
   data: IoTReading[];
   onReadingStored?: (index: number, hash: string) => void;
+  onAnalysisComplete?: (lotId: string | number, analysis: Record<string, unknown>) => void;
 }
 
 interface LogEntry {
@@ -30,7 +31,7 @@ interface LogEntry {
 
 const CHUNK_SIZE = 5;
 
-export function StoragePanel({ data, onReadingStored }: StoragePanelProps) {
+export function StoragePanel({ data, onReadingStored, onAnalysisComplete }: StoragePanelProps) {
   const { isConnected } = useAccount();
   const logEndRef = useRef<HTMLDivElement>(null);
   const agentLogEndRef = useRef<HTMLDivElement>(null);
@@ -184,6 +185,7 @@ export function StoragePanel({ data, onReadingStored }: StoragePanelProps) {
 
           addAgentLog("Metadata ready for NFT minting", "success");
           setAnalysis(agentData);
+          onAnalysisComplete?.(currentLotId, agentData);
           addLog(`AI Analysis: Grade ${pub?.qualityGrade}, Score ${pub?.qualityScore}/100`, "success");
         } else {
           const errData = await agentRes.json();
@@ -204,7 +206,7 @@ export function StoragePanel({ data, onReadingStored }: StoragePanelProps) {
       setStatus("error");
       addLog(`Error: ${msg}`, "error");
     }
-  }, [isConnected, data, addLog, addAgentLog, onReadingStored]);
+  }, [isConnected, data, addLog, addAgentLog, onReadingStored, onAnalysisComplete]);
 
   const handleCancel = useCallback(() => {
     cancelRef.current = true;

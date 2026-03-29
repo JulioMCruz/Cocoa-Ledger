@@ -9,6 +9,7 @@ import {
   getHistoricalContext,
 } from "./price-oracle";
 import { postAttestation, getAttestations } from "./attestation";
+import { handleDispute } from "./dispute";
 
 const app = express();
 app.use(cors());
@@ -245,6 +246,60 @@ app.post("/api/oracle/valuation", async (req, res) => {
   }
 });
 
+// ─── Dispute Endpoint ───
+
+app.post("/api/dispute", async (req, res) => {
+  try {
+    const { lotId, deviceId, reason } = req.body;
+
+    if (lotId === undefined || lotId === null) {
+      res.status(400).json({ error: "lotId is required" });
+      return;
+    }
+    if (deviceId === undefined || deviceId === null) {
+      res.status(400).json({ error: "deviceId is required" });
+      return;
+    }
+    if (!reason || typeof reason !== "string") {
+      res.status(400).json({ error: "reason is required" });
+      return;
+    }
+
+    const lotIdNum = Number(lotId);
+    const deviceIdNum = Number(deviceId);
+
+    if (isNaN(lotIdNum) || lotIdNum < 0) {
+      res.status(400).json({ error: "lotId must be a non-negative number" });
+      return;
+    }
+    if (isNaN(deviceIdNum) || deviceIdNum < 0) {
+      res.status(400).json({ error: "deviceId must be a non-negative number" });
+      return;
+    }
+
+    // Check lot exists
+    const nextId = await getNextLotId();
+    if (lotIdNum >= nextId) {
+      res.status(404).json({
+        error: `Lot ${lotIdNum} not found. Next lot ID is ${nextId}`,
+      });
+      return;
+    }
+
+    console.log(`[dispute] Received dispute for lot ${lotIdNum}, device ${deviceIdNum}`);
+    const result = await handleDispute({ lotId: lotIdNum, deviceId: deviceIdNum, reason });
+    console.log(`[dispute] Done — resolution: ${result.resolution}`);
+
+    res.json(result);
+  } catch (error: any) {
+    console.error("[dispute] Error:", error.message);
+    res.status(500).json({
+      error: "Dispute processing failed",
+      details: error.message,
+    });
+  }
+});
+
 const PORT = parseInt(process.env.PORT || "3001", 10);
 
 app.listen(PORT, () => {
@@ -255,5 +310,6 @@ app.listen(PORT, () => {
   console.log(`   Oracle:      http://localhost:${PORT}/api/oracle/price`);
   console.log(`   History:     http://localhost:${PORT}/api/oracle/history`);
   console.log(`   Valuation:   POST http://localhost:${PORT}/api/oracle/valuation`);
+  console.log(`   Dispute:     POST http://localhost:${PORT}/api/dispute`);
   console.log(`   On-chain:    ${process.env.ATTESTATION_ADDRESS ? "✅ Attestation enabled" : "⚠️  No ATTESTATION_ADDRESS — attestations disabled"}`);
 });
