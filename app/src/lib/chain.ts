@@ -29,7 +29,7 @@ export const raylsPublicChain = defineChain({
   },
   rpcUrls: {
     default: {
-      http: ["https://testnet-rpc.rayls.com"],
+      http: ["/api/rpc/public"],
     },
   },
   blockExplorers: {
