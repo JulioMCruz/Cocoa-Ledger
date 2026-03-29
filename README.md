@@ -396,6 +396,76 @@ Think of buying a house:
 
 Cocoa Ledger does the same for cacao. The attestation builds trust. The NFT delivers value.
 
+---
+
+## 🛡️ IoT Dispute System — Solving False Positives
+
+IoT sensors fail. Batteries die, humidity corrodes circuits, insects block readings, solar panels get dirty. In traditional systems, a single bad reading can tank an entire lot's score — and the farmer has no recourse.
+
+### The Problem
+
+| Failure Type | What Happens | Impact Without Dispute |
+|-------------|-------------|----------------------|
+| Sensor malfunction | Temperature spike to 45°C (false) | Lot downgraded from A to C |
+| Battery dying | Readings stop mid-harvest | "Insufficient data" = no certification |
+| Calibration drift | Soil pH reads 3.0 instead of 6.0 | AI flags as "acidic soil anomaly" |
+| Network outage | 12 hours of missing data | Gap interpreted as equipment failure |
+| Physical damage | Humidity sensor reads 0% | "Extreme drought" anomaly flagged |
+
+A false positive from a faulty sensor can **cost the farmer thousands of dollars** in lost premium pricing.
+
+### How Cocoa Ledger Solves This
+
+Because all IoT data is stored **immutably on the Rayls Privacy Node**, the farmer has a complete, tamper-proof historical record. This enables a dispute system:
+
+```mermaid
+sequenceDiagram
+    actor Farmer
+    participant Agent as 🤖 Cocoa Agent
+    participant PN as 🔒 Privacy Node
+    participant History as 📊 Historical Data
+
+    Agent->>PN: Analyze lot → flags anomaly
+    Agent-->>Farmer: Grade C (anomaly: temp spike 45°C on device #3)
+
+    Farmer->>History: "Device #3 was replaced on March 15"
+    Farmer->>PN: Submit dispute with evidence
+
+    Agent->>PN: Re-analyze excluding device #3 readings after March 15
+    Agent->>PN: Cross-reference with devices #1, #2, #4 (all normal)
+    Agent-->>Farmer: Revised Grade: A (anomaly attributed to sensor failure)
+```
+
+### Why This Only Works on Blockchain
+
+| Requirement | Database | Rayls Privacy Node |
+|-------------|---------|-------------------|
+| Prove readings weren't altered | ❌ Admin could edit | ✅ Immutable on-chain |
+| Show device history over time | ❌ Logs can be deleted | ✅ Every reading is a transaction |
+| Compare across multiple harvests | ❌ Data fragmented | ✅ All lots on same chain |
+| Third-party audit of dispute | ❌ Trust the farmer | ✅ Auditor reads blockchain directly |
+| Timestamp proof | ❌ System clock can be changed | ✅ Block timestamp is consensus |
+
+### What the AI Agent Does During Disputes
+
+1. **Cross-device validation** — If 4 out of 5 sensors show normal temperature and 1 shows 45°C, the agent identifies the outlier
+2. **Historical comparison** — Compares current lot readings against the farm's historical patterns from previous harvests stored on-chain
+3. **Temporal analysis** — Identifies if the anomaly is a sudden spike (likely failure) vs gradual change (likely real)
+4. **Confidence scoring** — Adjusts the quality score confidence based on data reliability
+5. **Transparent reasoning** — The dispute resolution and reasoning are included in the attestation
+
+### For the Farmer
+
+The dispute system means:
+- **No false penalties** — A broken sensor doesn't destroy your harvest's value
+- **Provable history** — Your clean track record is on-chain, not in someone's spreadsheet
+- **Fair re-evaluation** — The AI re-analyzes with the dispute context, not just raw numbers
+- **Audit trail** — Every dispute, resolution, and re-attestation is recorded immutably
+
+This is **data sovereignty** in practice. The farmer's IoT history on the Privacy Node isn't just data storage — it's their **reputation ledger** that protects them from the imperfections of hardware.
+
+---
+
 ### Smart Contract Suite
 
 | Contract | Chain | Address | Purpose |
