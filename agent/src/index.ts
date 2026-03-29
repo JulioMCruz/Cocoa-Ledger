@@ -8,6 +8,7 @@ import {
   estimateLotValue,
   getHistoricalContext,
 } from "./price-oracle";
+import { postAttestation, getAttestations } from "./attestation";
 
 const app = express();
 app.use(cors());
@@ -68,13 +69,62 @@ app.post("/api/analyze-lot", async (req, res) => {
       `[analyze] Done! Grade: ${result.publicMetadata.qualityGrade}, Score: ${result.publicMetadata.qualityScore}`
     );
 
-    res.json(result);
+    // Post attestation on-chain
+    console.log(`[analyze] Posting on-chain attestation...`);
+    const attestation = await postAttestation(
+      result.publicMetadata.qualityScore,
+      result.publicMetadata.qualityGrade,
+      lotIdNum,
+      lot.farmName,
+      lot.origin,
+      readings.length
+    );
+
+    const response = {
+      ...result,
+      attestation: attestation
+        ? {
+            txHash: attestation.txHash,
+            blockNumber: attestation.blockNumber,
+            attester: attestation.attester,
+            chain: attestation.chain,
+            explorerUrl: attestation.explorerUrl,
+            approved: attestation.approved,
+          }
+        : null,
+    };
+
+    res.json(response);
   } catch (error: any) {
     console.error("[analyze] Error:", error.message);
     res.status(500).json({
       error: "Analysis failed",
       details: error.message,
     });
+  }
+});
+
+// ─── Attestation Endpoints ───
+
+// GET /api/attestations/:token — read attestations for a token
+app.get("/api/attestations/:token", async (req, res) => {
+  try {
+    const { token } = req.params;
+    const attestations = await getAttestations(token);
+    res.json({
+      token,
+      count: attestations.length,
+      attestations: attestations.map((a: any) => ({
+        attester: a.attester,
+        approved: a.approved,
+        reason: a.reason,
+        score: Number(a.score),
+        timestamp: Number(a.timestamp),
+      })),
+    });
+  } catch (error: any) {
+    console.error("[attestation] Read error:", error.message);
+    res.status(500).json({ error: "Failed to read attestations", details: error.message });
   }
 });
 
@@ -151,9 +201,11 @@ const PORT = parseInt(process.env.PORT || "3001", 10);
 
 app.listen(PORT, () => {
   console.log(`🍫 Cocoa Ledger Agent running on port ${PORT}`);
-  console.log(`   Health:     http://localhost:${PORT}/api/health`);
-  console.log(`   Analyze:    POST http://localhost:${PORT}/api/analyze-lot`);
-  console.log(`   Oracle:     http://localhost:${PORT}/api/oracle/price`);
-  console.log(`   History:    http://localhost:${PORT}/api/oracle/history`);
-  console.log(`   Valuation:  POST http://localhost:${PORT}/api/oracle/valuation`);
+  console.log(`   Health:      http://localhost:${PORT}/api/health`);
+  console.log(`   Analyze:     POST http://localhost:${PORT}/api/analyze-lot`);
+  console.log(`   Attestation: GET  http://localhost:${PORT}/api/attestations/:token`);
+  console.log(`   Oracle:      http://localhost:${PORT}/api/oracle/price`);
+  console.log(`   History:     http://localhost:${PORT}/api/oracle/history`);
+  console.log(`   Valuation:   POST http://localhost:${PORT}/api/oracle/valuation`);
+  console.log(`   On-chain:    ${process.env.ATTESTATION_ADDRESS ? "✅ Attestation enabled" : "⚠️  No ATTESTATION_ADDRESS — attestations disabled"}`);
 });

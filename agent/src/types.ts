@@ -90,6 +90,15 @@ export interface PrivateMetadata {
   producerRecommendations: string;
 }
 
+export interface OnChainAttestation {
+  txHash: string;
+  blockNumber: number;
+  attester: string;
+  chain: string;
+  explorerUrl: string;
+  approved: boolean;
+}
+
 export interface AnalysisResponse {
   lotId: number;
   farmName: string;
@@ -98,6 +107,7 @@ export interface AnalysisResponse {
   analyzedAt: string;
   publicMetadata: PublicMetadata;
   privateMetadata: PrivateMetadata;
+  attestation?: OnChainAttestation | null;
 }
 
 // === Price Oracle Types ===
