@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useAccount } from "wagmi";
+import { useAccount, useSendTransaction, useWaitForTransactionReceipt, useSwitchChain } from "wagmi";
+import { parseEther, encodeFunctionData } from "viem";
 import { Header } from "@/components/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -91,13 +92,21 @@ export default function MarketplacePage() {
   );
 }
 
+const ATTESTATION_ADDRESS = "0x7f7508D693dFE7B490f1E41F40791d68d3BC0810";
+const PURCHASE_PRICE = "0.001"; // 0.001 USDr
+
 function MarketplaceContent() {
-  const { address } = useAccount();
+  const { address, chainId } = useAccount();
+  const { switchChain } = useSwitchChain();
+  const { sendTransaction, data: txHash, isPending: isSending } = useSendTransaction();
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash: txHash });
+
   const [lots, setLots] = useState<CacaoLot[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedLot, setSelectedLot] = useState<number | null>(null);
   const [purchasing, setPurchasing] = useState(false);
   const [revealedData, setRevealedData] = useState<RevealedData | null>(null);
+  const [purchaseTxHash, setPurchaseTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -110,38 +119,72 @@ function MarketplaceContent() {
       .catch(() => setLoading(false));
   }, []);
 
+  // When TX confirms, reveal data
+  useEffect(() => {
+    if (isConfirmed && txHash && selectedLot !== null) {
+      setPurchaseTxHash(txHash);
+      // Now call backend to reveal the data
+      fetch(`/api/marketplace/lot/${selectedLot}/purchase`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ buyerAddress: address, txHash }),
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.success && data.fullMetadata) {
+            setRevealedData({
+              ...data.fullMetadata,
+              purchaseTxHash: txHash,
+              purchaseExplorer: `https://testnet-explorer.rayls.com/tx/${txHash}`,
+            } as RevealedData);
+            setLots((prev) =>
+              prev.map((l) =>
+                l.tokenId === selectedLot ? { ...l, status: "revealed" } : l
+              )
+            );
+          }
+          setPurchasing(false);
+        })
+        .catch(() => setPurchasing(false));
+    }
+  }, [isConfirmed, txHash, selectedLot, address]);
+
   const handlePurchase = useCallback(
     async (tokenId: number) => {
-      if (!address) return;
+      if (!address) {
+        setError("Connect your wallet first");
+        return;
+      }
+
+      // Switch to Public Chain if needed
+      if (chainId !== 7295799) {
+        try {
+          switchChain({ chainId: 7295799 });
+          // Wait a bit for chain switch
+          await new Promise((r) => setTimeout(r, 2000));
+        } catch {
+          setError("Please switch to Rayls Public Chain (chain 7295799) in your wallet");
+          return;
+        }
+      }
+
       setPurchasing(true);
       setError(null);
       setSelectedLot(tokenId);
 
       try {
-        const res = await fetch(`/api/marketplace/lot/${tokenId}/purchase`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ buyerAddress: address }),
+        // Send real TX: 0.001 USDr to Attestation contract as purchase payment
+        sendTransaction({
+          to: ATTESTATION_ADDRESS as `0x${string}`,
+          value: parseEther(PURCHASE_PRICE),
+          chainId: 7295799,
         });
-        const data = await res.json();
-        if (data.success && data.fullMetadata) {
-          setRevealedData(data.fullMetadata as RevealedData);
-          // Update lot status locally
-          setLots((prev) =>
-            prev.map((l) =>
-              l.tokenId === tokenId ? { ...l, status: "revealed" } : l
-            )
-          );
-        } else {
-          setError(data.error || "Purchase failed");
-        }
       } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : "Purchase failed");
-      } finally {
+        setError(e instanceof Error ? e.message : "Transaction failed");
         setPurchasing(false);
       }
     },
-    [address]
+    [address, chainId, switchChain, sendTransaction]
   );
 
   if (loading) {
@@ -205,6 +248,8 @@ function MarketplaceContent() {
               lot={lot}
               onPurchase={handlePurchase}
               purchasing={purchasing && selectedLot === lot.tokenId}
+              isSending={isSending}
+              isConfirming={isConfirming}
             />
           ))}
         </div>
@@ -217,10 +262,14 @@ function LotCard({
   lot,
   onPurchase,
   purchasing,
+  isSending,
+  isConfirming,
 }: {
   lot: CacaoLot;
   onPurchase: (tokenId: number) => void;
   purchasing: boolean;
+  isSending: boolean;
+  isConfirming: boolean;
 }) {
   const isRevealed = lot.status === "revealed";
   const isRejected = lot.aiGrade === "D";
@@ -306,24 +355,31 @@ function LotCard({
             Rejected — Not Available
           </Button>
         ) : (
-          <Button
-            size="sm"
-            className="w-full bg-amber-600 hover:bg-amber-500"
-            onClick={() => onPurchase(lot.tokenId)}
-            disabled={purchasing}
-          >
-            {purchasing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Purchasing...
-              </>
-            ) : (
-              <>
-                <ShoppingCart className="mr-2 h-4 w-4" />
-                Purchase NFT & Reveal Data
-              </>
+          <div className="space-y-1.5">
+            <Button
+              size="sm"
+              className="w-full bg-amber-600 hover:bg-amber-500"
+              onClick={() => onPurchase(lot.tokenId)}
+              disabled={purchasing}
+            >
+              {purchasing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {isSending ? "Sign in Wallet..." : isConfirming ? "Confirming TX..." : "Processing..."}
+                </>
+              ) : (
+                <>
+                  <ShoppingCart className="mr-2 h-4 w-4" />
+                  Purchase NFT ({PURCHASE_PRICE} USDr)
+                </>
+              )}
+            </Button>
+            {!purchasing && (
+              <p className="text-[10px] text-center text-muted-foreground/50">
+                Requires Rayls Public Chain · Real on-chain transaction
+              </p>
             )}
-          </Button>
+          </div>
         )}
       </CardContent>
     </Card>
@@ -356,6 +412,31 @@ function RevealedView({
           </p>
         </div>
       </div>
+
+      {/* Purchase Transaction */}
+      {data.purchaseTxHash && (
+        <Card className="border-amber-500/30 bg-card/50">
+          <CardContent className="p-4 space-y-2">
+            <h3 className="text-sm font-medium text-amber-400 uppercase tracking-wider flex items-center gap-2">
+              💰 Purchase Transaction
+              <Badge className="bg-emerald-500/20 text-emerald-400 text-[10px]">Paid {PURCHASE_PRICE} USDr</Badge>
+            </h3>
+            <p className="text-xs">
+              TX:{" "}
+              <a
+                href={String(data.purchaseExplorer || `https://testnet-explorer.rayls.com/tx/${data.purchaseTxHash}`)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-amber-400 underline hover:text-amber-300 font-mono"
+              >
+                {String(data.purchaseTxHash).slice(0, 14)}...{String(data.purchaseTxHash).slice(-8)}
+                <ExternalLink className="inline h-3 w-3 ml-1" />
+              </a>
+            </p>
+            <p className="text-[10px] text-muted-foreground">Verified on Rayls Public Chain (7295799)</p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* NFT Transaction Links */}
       {(data.mintTxHash || data.bridgeTxHash) && (
