@@ -1,93 +1,82 @@
-/**
- * Cocoa Ledger AI Agent
- *
- * Reads IoT data from Privacy Node → AI analyzes cacao quality → Posts attestation on Public Chain
- */
-import { ethers } from "ethers";
-import { config } from "./config";
-import { analyzeToken } from "./llm";
+import "dotenv/config";
+import express from "express";
+import cors from "cors";
+import { getLot, getAllReadings, getNextLotId } from "./blockchain";
+import { analyzeLot } from "./analyzer";
 
-const COCOA_DATA_ABI = [
-  "function getLot(uint256 lotId) view returns (tuple(uint256 lotId, string farmName, string origin, uint256 createdAt, uint256 readingsCount, bool finalized))",
-  "function getReading(uint256 lotId, uint256 index) view returns (tuple(uint256 deviceId, uint256 timestamp, int256 temperature, uint256 humidity, uint256 soilMoisture, uint256 soilPH, uint256 rainfall, uint256 lightIntensity, string gpsLocation))",
-  "function nextLotId() view returns (uint256)",
-];
+const app = express();
+app.use(cors());
+app.use(express.json());
 
-const ATTESTATION_ABI = [
-  "function attest(address token, bool approved, string reason, uint256 score)",
-];
+// Health check
+app.get("/api/health", (_req, res) => {
+  res.json({ status: "ok", version: "1.0.0" });
+});
 
-async function main() {
-  console.log("=== Cocoa Ledger AI Agent ===");
-  console.log("Connecting to Rayls Privacy Node...");
-
-  const privateProvider = new ethers.JsonRpcProvider(config.publicChainRpc.replace("testnet-rpc", "privacy-node-0"));
-  const publicProvider = new ethers.JsonRpcProvider(config.publicChainRpc);
-  const wallet = new ethers.Wallet(config.agentPrivateKey, publicProvider);
-
-  // Read IoT data from Privacy Node
-  const dataContract = new ethers.Contract(
-    "0x47B1C749cB7f1b48679E872E6DF3d1223cb4c6fC",
-    COCOA_DATA_ABI,
-    privateProvider
-  );
-
-  const attestation = new ethers.Contract(config.attestationAddress, ATTESTATION_ABI, wallet);
-
-  // Check how many lots exist
-  let lotCount;
+// Analyze a cacao lot
+app.post("/api/analyze-lot", async (req, res) => {
   try {
-    lotCount = await dataContract.nextLotId();
-    console.log(`Found ${lotCount} harvest lots on Privacy Node`);
-  } catch {
-    console.log("No lots found yet, using simulated IoT data for analysis");
-    lotCount = 0n;
+    const { lotId } = req.body;
+
+    if (lotId === undefined || lotId === null) {
+      res.status(400).json({ error: "lotId is required" });
+      return;
+    }
+
+    const lotIdNum = Number(lotId);
+    if (isNaN(lotIdNum) || lotIdNum < 0) {
+      res.status(400).json({ error: "lotId must be a non-negative number" });
+      return;
+    }
+
+    // Check lot exists
+    const nextId = await getNextLotId();
+    if (lotIdNum >= nextId) {
+      res.status(404).json({
+        error: `Lot ${lotIdNum} not found. Next lot ID is ${nextId}`,
+      });
+      return;
+    }
+
+    console.log(`[analyze] Fetching lot ${lotIdNum}...`);
+    const lot = await getLot(lotIdNum);
+
+    if (lot.readingsCount === 0) {
+      res.status(400).json({
+        error: `Lot ${lotIdNum} has no readings yet`,
+        lot,
+      });
+      return;
+    }
+
+    console.log(
+      `[analyze] Lot "${lot.farmName}" from ${lot.origin} — ${lot.readingsCount} readings`
+    );
+
+    console.log(`[analyze] Fetching ${lot.readingsCount} readings...`);
+    const readings = await getAllReadings(lotIdNum, lot.readingsCount);
+
+    console.log(`[analyze] Analyzing with AI...`);
+    const result = await analyzeLot(lot, readings);
+
+    console.log(
+      `[analyze] Done! Grade: ${result.publicMetadata.qualityGrade}, Score: ${result.publicMetadata.qualityScore}`
+    );
+
+    res.json(result);
+  } catch (error: any) {
+    console.error("[analyze] Error:", error.message);
+    res.status(500).json({
+      error: "Analysis failed",
+      details: error.message,
+    });
   }
+});
 
-  // Simulated IoT summary for analysis (or real data if lots exist)
-  let iotSummary: string;
+const PORT = parseInt(process.env.PORT || "3001", 10);
 
-  if (lotCount > 0n) {
-    const lot = await dataContract.getLot(0);
-    console.log(`Lot 0: ${lot.farmName} (${lot.origin}), ${lot.readingsCount} readings`);
-    iotSummary = `Farm: ${lot.farmName}, Origin: ${lot.origin}, Readings: ${lot.readingsCount}`;
-  } else {
-    iotSummary = "Farm: Finca San Miguel, Origin: Peru, Devices: 8, Readings: 156, Avg Temp: 27.5C, Humidity: 85%, Soil pH: 6.5, Rainfall: 120mm/month";
-    console.log("Using simulated IoT data:");
-    console.log(`  ${iotSummary}`);
-  }
-
-  // AI Analysis
-  console.log("\nCalling AI agent for cacao quality analysis...");
-  const tokenData = {
-    address: config.tokenAddress,
-    name: "Cacao Harvest Lot #001 - Finca San Miguel, Peru",
-    symbol: "CACAO",
-    totalSupply: `IoT Data Summary: ${iotSummary}. Evaluate this cacao harvest for quality (A/B/C/D grade), considering temperature, humidity, soil conditions, and rainfall patterns for premium cacao production.`,
-  };
-
-  const result = await analyzeToken(tokenData);
-  console.log(`\nAI Verdict: ${result.approved ? "APPROVED" : "REJECTED"}`);
-  console.log(`Quality Score: ${result.score}/100`);
-  console.log(`Reason: ${result.reason}`);
-
-  // Post attestation on Public Chain
-  console.log("\nPosting attestation to Rayls Public Chain...");
-  const tx = await attestation.attest(
-    config.tokenAddress,
-    result.approved,
-    result.reason,
-    result.score
-  );
-  console.log(`TX submitted: ${tx.hash}`);
-  
-  const receipt = await tx.wait();
-  console.log(`TX confirmed: ${receipt!.status === 1 ? "SUCCESS" : "FAILED"}`);
-  console.log(`\nView on explorer: https://testnet-explorer.rayls.com/tx/${tx.hash}`);
-  console.log("\n=== Attestation Complete ===");
-}
-
-main().catch((e) => {
-  console.error("Error:", e.message);
-  process.exit(1);
+app.listen(PORT, () => {
+  console.log(`🍫 Cocoa Ledger Agent running on port ${PORT}`);
+  console.log(`   Health: http://localhost:${PORT}/api/health`);
+  console.log(`   Analyze: POST http://localhost:${PORT}/api/analyze-lot`);
 });
