@@ -66,6 +66,14 @@ const GRADE_COLORS: Record<string, string> = {
   D: "text-red-400 bg-red-500/10 border-red-500/30",
 };
 
+const GRADE_IMAGES: Record<string, string> = {
+  S: "/nft/grade-s.svg",
+  A: "/nft/grade-a.svg",
+  B: "/nft/grade-b.svg",
+  C: "/nft/grade-c.svg",
+  D: "/nft/grade-d.svg",
+};
+
 export default function MarketplacePage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -219,20 +227,28 @@ function LotCard({
   const gradeClass = GRADE_COLORS[lot.aiGrade] || GRADE_COLORS.C;
 
   return (
-    <Card className="border-border/50 bg-card/50 hover:border-emerald-500/30 transition-all">
-      <CardContent className="p-4 space-y-3">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">🍫</span>
-            <span className="font-semibold text-sm">Lot #{lot.tokenId}</span>
-          </div>
+    <Card className="border-border/50 bg-card/50 hover:border-emerald-500/30 transition-all overflow-hidden">
+      {/* NFT Image */}
+      <div className="relative">
+        <img
+          src={GRADE_IMAGES[lot.aiGrade] || GRADE_IMAGES.C}
+          alt={`Cacao Lot #${lot.tokenId} - Grade ${lot.aiGrade}`}
+          className="w-full h-auto"
+        />
+        <div className="absolute top-3 right-3">
           <div
-            className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 ${gradeClass}`}
+            className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 backdrop-blur-sm ${gradeClass}`}
           >
             <span className="text-xl font-bold">{lot.aiGrade}</span>
             <span className="text-xs opacity-70">{lot.aiScore}/100</span>
           </div>
+        </div>
+      </div>
+      <CardContent className="p-4 space-y-3">
+        {/* Header */}
+        <div className="flex items-center gap-2">
+          <span className="text-lg">🍫</span>
+          <span className="font-semibold text-sm">Lot #{lot.tokenId}</span>
         </div>
 
         {/* Info */}
