@@ -19,7 +19,8 @@ Cocoa Ledger transforms each cacao harvest lot into a verifiable digital asset:
 1. **IoT sensors** monitor farm conditions (temperature, humidity, soil, rainfall)
 2. **Private blockchain** stores all raw data — only the farmer can see it
 3. **AI agent** analyzes the data and scores harvest quality
-4. **Confidential NFT** packages the analysis — investors buy to unlock private data
+4. **Price oracle** fetches live cacao market prices from ICE Futures US for real-time lot valuation
+5. **Confidential NFT** packages the analysis — investors buy to unlock private data
 
 ## Why Blockchain Instead of a Database?
 
@@ -351,6 +352,54 @@ sequenceDiagram
     Market->>Market: buy(listingId) → reveal private data
 ```
 
+## Price Oracle — Cacao Market Data
+
+The Cocoa Agent doubles as a **price oracle** for the cacao commodity market, connecting real-world market data to on-chain lot valuations.
+
+### How It Works
+
+The oracle fetches live cocoa futures prices (CC contract) from multiple sources, caches them, and combines them with quality scores to estimate lot values:
+
+```
+Market Price ($8,145/ton) × Lot Volume (2,500 kg) × Quality Multiplier (1.2x for Grade A) = $24,435
+```
+
+### Oracle API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/oracle/price` | GET | Current cacao market price (ICE Futures US) |
+| `/api/oracle/history` | GET | Monthly historical prices (15 months) |
+| `/api/oracle/valuation` | POST | Lot value estimate using market price + quality |
+
+### Quality Premium Model
+
+Lots with higher quality scores command premiums over the base commodity price:
+
+| Grade | Score | Premium | Example (2,500 kg lot) |
+|-------|-------|---------|----------------------|
+| **S** | 95-100 | +35% | $27,493 |
+| **A** | 85-94 | +20% | $24,435 |
+| **B** | 70-84 | +5% | $21,380 |
+| **C** | 50-69 | -10% | $18,326 |
+| **D** | 0-49 | -30% | $14,254 |
+
+### Data Sources
+
+1. **Trading Economics** — Real-time cocoa futures from ICE exchange
+2. **World Bank** — Monthly commodity reference prices
+3. **Fallback** — Last verified market price
+
+Prices are cached for 5 minutes to minimize API calls. The oracle is fully transparent — every response includes which sources were checked and whether the data was served from cache.
+
+### Why an Oracle Matters
+
+For the NFT marketplace to function as a real commodity market, buyers need **market context**. The oracle provides:
+- **Fair pricing** — Lot values anchored to real commodity markets
+- **Quality premiums** — Data-backed price differentiation (not just the seller's word)
+- **Historical trends** — Buyers see if prices are rising or falling before purchasing
+- **Automated valuation** — No manual price negotiation needed
+
 ## Technical Details
 
 ### Chunked Transaction Processing
@@ -387,6 +436,7 @@ cocoa-ledger/
 │   ├── src/index.ts             ← Express server
 │   ├── src/blockchain.ts        ← Read from Privacy Node
 │   ├── src/analyzer.ts          ← Gemini AI analysis
+│   ├── src/price-oracle.ts      ← Cacao market price oracle
 │   ├── src/types.ts             ← TypeScript types
 │   ├── skills/                  ← ETHSkills (standards, security)
 │   ├── Dockerfile               ← Container deployment

@@ -17,11 +17,38 @@ An autonomous AI agent that reads cacao IoT data from the Rayls Privacy Node, an
 ```json
 { "lotId": 0 }
 ```
-
 Returns quality grade (S/A/B/C/D), score (0-100), crop health assessment, price estimate, and more.
 
 ### GET /api/health
 Returns `{ "status": "ok", "version": "1.0.0" }`
+
+### GET /api/oracle/price
+Returns current cacao market price from ICE Futures US (cocoa futures CC contract).
+```json
+{
+  "price": 8145.00,
+  "unit": "USD/ton",
+  "pricePerKg": 8.145,
+  "source": "tradingeconomics",
+  "exchange": "ICE Futures US",
+  "cached": false
+}
+```
+
+### GET /api/oracle/history
+Returns 15 months of historical cocoa prices (monthly averages).
+
+### POST /api/oracle/valuation
+Estimates lot market value using current price + quality score.
+```json
+{
+  "lotId": 0,
+  "lotVolumeKg": 2500,
+  "qualityScore": 93,
+  "qualityGrade": "A"
+}
+```
+Returns base value, quality multiplier, estimated value with premium/discount.
 
 ## Directory Structure
 
@@ -31,6 +58,7 @@ agent/
 │   ├── index.ts          ← Express server + API endpoints
 │   ├── blockchain.ts     ← Read IoT data from Rayls Privacy Node
 │   ├── analyzer.ts       ← AI analysis with Google Gemini
+│   ├── price-oracle.ts   ← Cacao market price oracle (multi-source)
 │   └── types.ts          ← TypeScript types
 ├── skills/               ← ETHSkills used by the agent
 │   ├── standards.md      ← ERC token standards reference
@@ -211,6 +239,7 @@ The `skills/` directory contains ETHSkills (https://ethskills.com) used by the a
 |-------|-------------|
 | `standards.md` | ERC-20, ERC-721, ERC-1155, ERC-8004 token standards |
 | `security.md` | Smart contract security patterns and audit checklist |
+| `price-oracle.md` | Cacao commodity price oracle — live market data + lot valuation |
 
 To add more skills:
 1. Visit https://ethskills.com
