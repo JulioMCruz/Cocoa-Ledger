@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useAccount } from "wagmi";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -12,10 +12,7 @@ import {
   AlertCircle,
   Loader2,
   Shield,
-  Pause,
-  Play,
 } from "lucide-react";
-import { cocoaLedgerDataAbi, COCOA_LEDGER_DATA_ADDRESS } from "@/lib/contract";
 import type { IoTReading, StorageStatus } from "@/lib/types";
 
 interface StoragePanelProps {
@@ -24,285 +21,206 @@ interface StoragePanelProps {
 
 export function StoragePanel({ data }: StoragePanelProps) {
   const { isConnected } = useAccount();
-  const { writeContractAsync } = useWriteContract();
 
   const [status, setStatus] = useState<StorageStatus>("idle");
   const [stored, setStored] = useState(0);
-  const [lotId, setLotId] = useState<bigint | null>(null);
+  const [lotId, setLotId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
-  const pausedRef = useRef(false);
-  const [isPaused, setIsPaused] = useState(false);
+  const [lastHash, setLastHash] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const total = data.length;
   const progress = total > 0 ? (stored / total) * 100 : 0;
-
-  const togglePause = useCallback(() => {
-    pausedRef.current = !pausedRef.current;
-    setIsPaused(pausedRef.current);
-  }, []);
 
   const handleStore = useCallback(async () => {
     if (!isConnected || data.length === 0) return;
 
     setError(null);
     setStored(0);
-    pausedRef.current = false;
-    setIsPaused(false);
+    setStatus("creating_lot");
+    setLotId(null);
+    setTxHash(null);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     try {
-      // Step 1: Create lot
-      setStatus("creating-lot");
-      const createHash = await writeContractAsync({
-        address: COCOA_LEDGER_DATA_ADDRESS,
-        abi: cocoaLedgerDataAbi,
-        functionName: "createLot",
-        args: ["Finca Dorada", "Cusco, Peru"],
+      const res = await fetch("/api/store-stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          readings: data,
+          farmName: "Finca Dorada",
+          origin: "Peru",
+        }),
+        signal: controller.signal,
       });
-      setTxHash(createHash);
 
-      // For gasless chain, use a simple lot ID
-      // In production, you'd parse the event log for the returned lotId
-      const currentLotId = BigInt(1);
-      setLotId(currentLotId);
-
-      // Step 2: Store readings one by one
-      setStatus("storing");
-
-      for (let i = 0; i < data.length; i++) {
-        // Check for pause
-        while (pausedRef.current) {
-          await new Promise((r) => setTimeout(r, 500));
-        }
-
-        const row = data[i];
-        try {
-          const hash = await writeContractAsync({
-            address: COCOA_LEDGER_DATA_ADDRESS,
-            abi: cocoaLedgerDataAbi,
-            functionName: "storeReading",
-            args: [
-              currentLotId,
-              BigInt(row.device_id),
-              BigInt(row.temperature),
-              BigInt(row.humidity),
-              BigInt(row.soil_moisture),
-              BigInt(row.soil_ph),
-              BigInt(row.precipitation),
-              BigInt(row.light_intensity),
-              `${row.gps_lat},${row.gps_lng}`,
-            ],
-          });
-          setTxHash(hash);
-          setStored(i + 1);
-        } catch (txErr: unknown) {
-          const message = txErr instanceof Error ? txErr.message : "Unknown error";
-          // If user rejects, stop. Otherwise continue.
-          if (message.includes("rejected") || message.includes("denied")) {
-            throw txErr;
-          }
-          console.warn(`Reading ${i + 1} failed, continuing:`, message);
-          setStored(i + 1);
-        }
+      if (!res.ok || !res.body) {
+        setError("Failed to start batch process");
+        setStatus("error");
+        return;
       }
 
-      // Step 3: Finalize
-      setStatus("finalizing");
-      const finalizeHash = await writeContractAsync({
-        address: COCOA_LEDGER_DATA_ADDRESS,
-        abi: cocoaLedgerDataAbi,
-        functionName: "finalizeLot",
-        args: [currentLotId],
-      });
-      setTxHash(finalizeHash);
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
 
-      setStatus("done");
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      setError(message.slice(0, 200));
-      setStatus("error");
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const event = JSON.parse(line.slice(6));
+
+            if (event.type === "lot_created") {
+              setLotId(event.lotId);
+              setTxHash(event.hash);
+              setStatus("storing");
+            } else if (event.type === "reading_stored") {
+              setStored(event.index + 1);
+              setLastHash(event.hash);
+            } else if (event.type === "reading_error") {
+              // continue, don't stop
+            } else if (event.type === "complete") {
+              setStored(total);
+              setStatus("finalizing");
+              setLastHash(event.finalizeHash);
+              setTimeout(() => setStatus("done"), 500);
+            } else if (event.type === "error") {
+              setError(event.message);
+              setStatus("error");
+            } else if (event.type === "status") {
+              if (event.message === "Finalizing lot...") {
+                setStatus("finalizing");
+              }
+            }
+          } catch {
+            // skip parse errors
+          }
+        }
+      }
+    } catch (e: unknown) {
+      if (e instanceof DOMException && e.name === "AbortError") {
+        setStatus("idle");
+      } else {
+        const msg = e instanceof Error ? e.message : String(e);
+        setError(msg);
+        setStatus("error");
+      }
     }
-  }, [isConnected, data, writeContractAsync]);
+  }, [isConnected, data, total]);
 
-  if (!isConnected) {
-    return (
-      <Card className="border-border/50 bg-card/30">
-        <CardContent className="flex flex-col items-center gap-3 p-6 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-            <Shield className="h-6 w-6 text-muted-foreground" />
-          </div>
-          <div>
-            <p className="font-medium">Connect Wallet</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Connect your wallet to store IoT data on the Privacy Node
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const handleCancel = useCallback(() => {
+    abortRef.current?.abort();
+    setStatus("idle");
+  }, []);
+
+  const isRunning = status === "creating_lot" || status === "storing" || status === "finalizing";
 
   return (
-    <Card className="border-border/50 bg-card/30">
+    <Card className="border-border/50 bg-card/50">
       <CardContent className="space-y-4 p-4 sm:p-6">
-        {/* Header row */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
+            <Shield className="h-5 w-5 text-emerald-400" />
             <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-              Privacy Node Storage
+              Store on Privacy Node
             </h3>
-            <StatusBadge status={status} />
           </div>
-          {status === "storing" && (
+          <div className="flex gap-2">
+            {isRunning && (
+              <Button
+                onClick={handleCancel}
+                variant="outline"
+                size="lg"
+                className="h-11 w-full sm:w-auto border-red-500/30 text-red-400 hover:bg-red-500/10"
+              >
+                <AlertCircle className="mr-2 h-4 w-4" />
+                Cancel
+              </Button>
+            )}
             <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={togglePause}
+              onClick={handleStore}
+              disabled={!isConnected || data.length === 0 || isRunning}
+              size="lg"
+              className="h-11 w-full sm:w-auto bg-emerald-600 text-white hover:bg-emerald-500"
             >
-              {isPaused ? (
-                <Play className="h-4 w-4 text-emerald-400" />
+              {isRunning ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {status === "creating_lot"
+                    ? "Creating Lot..."
+                    : status === "finalizing"
+                      ? "Finalizing..."
+                      : `Storing ${stored}/${total}...`}
+                </>
+              ) : status === "done" ? (
+                <>
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                  Stored Successfully
+                </>
               ) : (
-                <Pause className="h-4 w-4 text-muted-foreground" />
+                <>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Store on Privacy Node
+                </>
               )}
             </Button>
-          )}
+          </div>
         </div>
 
-        {/* Progress area */}
-        {status !== "idle" && (
+        {/* Progress */}
+        {(isRunning || status === "done") && (
           <div className="space-y-2">
-            <Progress
-              value={status === "done" ? 100 : progress}
-              className="h-2 bg-muted [&>div]:bg-emerald-500 [&>div]:transition-all [&>div]:duration-300"
-            />
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">
-                {status === "creating-lot" && "Creating lot on-chain..."}
-                {status === "storing" &&
-                  (isPaused
-                    ? "Paused"
-                    : `Storing reading ${stored + 1} of ${total}...`)}
-                {status === "finalizing" && "Finalizing lot..."}
-                {status === "done" &&
-                  `All ${total.toLocaleString()} readings stored ✓`}
-                {status === "error" && "Error occurred"}
-              </p>
-              <p className="font-mono text-xs tabular-nums text-muted-foreground">
-                {stored.toLocaleString()} / {total.toLocaleString()}
-              </p>
+            <Progress value={progress} className="h-2" />
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              <span>
+                <span className="font-medium text-foreground">{stored.toLocaleString()}</span> / {total.toLocaleString()} readings
+              </span>
+              {lotId && (
+                <span>
+                  Lot ID: <span className="font-mono text-foreground">{lotId}</span>
+                </span>
+              )}
+              {lastHash && (
+                <span className="font-mono text-[10px] text-muted-foreground/60 truncate max-w-[200px]">
+                  TX: {lastHash}
+                </span>
+              )}
             </div>
           </div>
         )}
 
-        {/* Latest TX */}
-        {txHash && (
-          <div className="rounded-lg bg-muted/50 px-3 py-2">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              Latest TX
-            </p>
-            <p className="mt-0.5 truncate font-mono text-xs text-emerald-400">
-              {txHash}
-            </p>
-          </div>
-        )}
-
-        {/* Error */}
-        {error && (
-          <div className="flex items-start gap-2 rounded-lg bg-red-500/10 px-3 py-2.5">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
-            <p className="text-xs text-red-300">{error}</p>
-          </div>
-        )}
-
-        {/* Success */}
-        {status === "done" && (
-          <div className="flex items-start gap-2 rounded-lg bg-emerald-500/10 px-3 py-2.5">
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
-            <div>
-              <p className="text-sm font-medium text-emerald-400">
-                Lot finalized successfully
-              </p>
-              <p className="mt-0.5 text-xs text-emerald-400/70">
-                {total.toLocaleString()} IoT readings stored on Rayls Privacy
-                Node
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Action button */}
-        <Button
-          onClick={handleStore}
-          disabled={
-            data.length === 0 ||
-            status === "creating-lot" ||
-            status === "storing" ||
-            status === "finalizing"
-          }
-          className="h-12 w-full bg-emerald-600 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-40"
-        >
-          {status === "idle" || status === "error" ? (
-            <>
-              <Upload className="mr-2 h-4 w-4" />
-              Store {total.toLocaleString()} Readings on Privacy Node
-            </>
-          ) : status === "done" ? (
-            <>
-              <CheckCircle2 className="mr-2 h-4 w-4" />
-              Store Again
-            </>
-          ) : (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Processing...
-            </>
+        {/* Status badges */}
+        <div className="flex flex-wrap gap-2">
+          {status === "done" && (
+            <Badge className="bg-emerald-500/10 text-emerald-400">
+              <CheckCircle2 className="mr-1 h-3 w-3" />
+              All {total} readings stored on-chain
+            </Badge>
           )}
-        </Button>
+          {error && (
+            <Badge className="bg-red-500/10 text-red-400">
+              <AlertCircle className="mr-1 h-3 w-3" />
+              {error.slice(0, 80)}
+            </Badge>
+          )}
+          <Badge variant="secondary" className="bg-blue-500/10 text-blue-400 text-[10px]">
+            No gas fees — Privacy Node is gasless
+          </Badge>
+          <Badge variant="secondary" className="bg-purple-500/10 text-purple-400 text-[10px]">
+            Auto-signed — no wallet popups
+          </Badge>
+        </div>
       </CardContent>
     </Card>
   );
-}
-
-function StatusBadge({ status }: { status: StorageStatus }) {
-  switch (status) {
-    case "idle":
-      return null;
-    case "creating-lot":
-    case "storing":
-    case "finalizing":
-      return (
-        <Badge
-          variant="secondary"
-          className="bg-amber-500/10 text-amber-400 text-[10px] uppercase tracking-wide"
-        >
-          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-          {status === "creating-lot"
-            ? "Creating"
-            : status === "finalizing"
-              ? "Finalizing"
-              : "Storing"}
-        </Badge>
-      );
-    case "done":
-      return (
-        <Badge
-          variant="secondary"
-          className="bg-emerald-500/10 text-emerald-400 text-[10px] uppercase tracking-wide"
-        >
-          <CheckCircle2 className="mr-1 h-3 w-3" />
-          Complete
-        </Badge>
-      );
-    case "error":
-      return (
-        <Badge
-          variant="secondary"
-          className="bg-red-500/10 text-red-400 text-[10px] uppercase tracking-wide"
-        >
-          <AlertCircle className="mr-1 h-3 w-3" />
-          Error
-        </Badge>
-      );
-  }
 }

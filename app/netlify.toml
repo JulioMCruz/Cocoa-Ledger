@@ -1,0 +1,13 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[build.environment]
+  PRIVACY_NODE_RPC = "https://privacy-node-0.rayls.com"
+  DATA_CONTRACT_ADDRESS = "0x47B1C749cB7f1b48679E872E6DF3d1223cb4c6fC"
+  NEXT_PUBLIC_DATA_CONTRACT_ADDRESS = "0x47B1C749cB7f1b48679E872E6DF3d1223cb4c6fC"
+  NEXT_PUBLIC_PRIVACY_NODE_RPC = "https://privacy-node-0.rayls.com"
+  NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID = "d587fbee76b76abe82cee8f89db889fa"
