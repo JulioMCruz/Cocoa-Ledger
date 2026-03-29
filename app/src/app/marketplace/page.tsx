@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useAccount, useSendTransaction, useWaitForTransactionReceipt, useSwitchChain } from "wagmi";
-import { parseEther, encodeFunctionData } from "viem";
+import { useAccount } from "wagmi";
 import { Header } from "@/components/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -93,21 +92,25 @@ export default function MarketplacePage() {
   );
 }
 
-const ATTESTATION_ADDRESS = "0x7f7508D693dFE7B490f1E41F40791d68d3BC0810";
 const PURCHASE_PRICE = "0.001"; // 0.001 USDr
 
+interface PurchaseLog {
+  time: string;
+  message: string;
+  type: "info" | "success" | "error" | "warn";
+  txHash?: string;
+  explorer?: string;
+}
+
 function MarketplaceContent() {
-  const { address, chainId } = useAccount();
-  const { switchChain } = useSwitchChain();
-  const { sendTransaction, data: txHash, isPending: isSending } = useSendTransaction();
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash: txHash });
+  const { address } = useAccount();
 
   const [lots, setLots] = useState<CacaoLot[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedLot, setSelectedLot] = useState<number | null>(null);
   const [purchasing, setPurchasing] = useState(false);
   const [revealedData, setRevealedData] = useState<RevealedData | null>(null);
-  const [purchaseTxHash, setPurchaseTxHash] = useState<string | null>(null);
+  const [purchaseLogs, setPurchaseLogs] = useState<PurchaseLog[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -120,35 +123,10 @@ function MarketplaceContent() {
       .catch(() => setLoading(false));
   }, []);
 
-  // When TX confirms, reveal data
-  useEffect(() => {
-    if (isConfirmed && txHash && selectedLot !== null) {
-      setPurchaseTxHash(txHash);
-      // Now call backend to reveal the data
-      fetch(`/api/marketplace/lot/${selectedLot}/purchase`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ buyerAddress: address, txHash }),
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.success && data.fullMetadata) {
-            setRevealedData({
-              ...data.fullMetadata,
-              purchaseTxHash: txHash,
-              purchaseExplorer: `https://testnet-explorer.rayls.com/tx/${txHash}`,
-            } as RevealedData);
-            setLots((prev) =>
-              prev.map((l) =>
-                l.tokenId === selectedLot ? { ...l, status: "revealed" } : l
-              )
-            );
-          }
-          setPurchasing(false);
-        })
-        .catch(() => setPurchasing(false));
-    }
-  }, [isConfirmed, txHash, selectedLot, address]);
+  const addLog = useCallback((message: string, type: PurchaseLog["type"] = "info", txHash?: string, explorer?: string) => {
+    const time = new Date().toLocaleTimeString();
+    setPurchaseLogs((prev) => [...prev, { time, message, type, txHash, explorer }]);
+  }, []);
 
   const handlePurchase = useCallback(
     async (tokenId: number) => {
@@ -157,35 +135,68 @@ function MarketplaceContent() {
         return;
       }
 
-      // Switch to Public Chain if needed
-      if (chainId !== 7295799) {
-        try {
-          switchChain({ chainId: 7295799 });
-          // Wait a bit for chain switch
-          await new Promise((r) => setTimeout(r, 2000));
-        } catch {
-          setError("Please switch to Rayls Public Chain (chain 7295799) in your wallet");
-          return;
-        }
-      }
-
       setPurchasing(true);
       setError(null);
       setSelectedLot(tokenId);
+      setPurchaseLogs([]);
 
-      try {
-        // Send real TX: 0.001 USDr to Attestation contract as purchase payment
-        sendTransaction({
-          to: ATTESTATION_ADDRESS as `0x${string}`,
-          value: parseEther(PURCHASE_PRICE),
-          chainId: 7295799,
-        });
-      } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : "Transaction failed");
+      addLog(`Starting purchase for Lot #${tokenId}...`);
+      addLog(`Buyer: ${address}`);
+      addLog("Connecting to Rayls blockchain...");
+
+      // Use SSE purchase-stream for real-time logs
+      const evtSource = new EventSource(
+        `/api/marketplace/lot/${tokenId}/purchase-stream?buyer=${address}`
+      );
+
+      evtSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+
+          if (data.type === "log") {
+            addLog(data.message, "info");
+          } else if (data.type === "success") {
+            addLog(data.message, "success", data.txHash, data.explorer);
+            if (data.txHash) {
+              console.log(`%c✅ ${data.message}`, "color: #22c55e; font-weight: bold");
+              console.log(`%c🔗 ${data.explorer}`, "color: #22c55e");
+            }
+          } else if (data.type === "warn") {
+            addLog(data.message, "warn");
+          } else if (data.type === "error") {
+            addLog(data.message, "error");
+            setError(data.message);
+          } else if (data.type === "complete") {
+            addLog("🔓 Purchase complete — private data revealed!", "success");
+            if (data.fullMetadata) {
+              setRevealedData({
+                ...data.fullMetadata,
+                mintTxHash: data.mintTxHash,
+                bridgeTxHash: data.bridgeTxHash,
+                mintExplorer: data.mintExplorer,
+                bridgeExplorer: data.bridgeExplorer,
+              } as RevealedData);
+              setLots((prev) =>
+                prev.map((l) =>
+                  l.tokenId === tokenId ? { ...l, status: "revealed" } : l
+                )
+              );
+            }
+            setPurchasing(false);
+            evtSource.close();
+          }
+        } catch {
+          // ignore parse errors
+        }
+      };
+
+      evtSource.onerror = () => {
+        addLog("Connection closed", "info");
         setPurchasing(false);
-      }
+        evtSource.close();
+      };
     },
-    [address, chainId, switchChain, sendTransaction]
+    [address, addLog]
   );
 
   if (loading) {
@@ -242,6 +253,7 @@ function MarketplaceContent() {
           </CardContent>
         </Card>
       ) : (
+        <>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {lots.map((lot) => (
             <LotCard
@@ -249,11 +261,66 @@ function MarketplaceContent() {
               lot={lot}
               onPurchase={handlePurchase}
               purchasing={purchasing && selectedLot === lot.tokenId}
-              isSending={isSending}
-              isConfirming={isConfirming}
             />
           ))}
         </div>
+
+        {/* Purchase Log */}
+        {purchaseLogs.length > 0 && (
+          <Card className="border-amber-500/30 bg-card/50 mt-6">
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-lg">🏪</span>
+                <h3 className="text-sm font-medium uppercase tracking-wider text-amber-400">
+                  Purchase Log
+                </h3>
+                <Badge variant="secondary" className="text-[10px] bg-amber-500/10 text-amber-400">
+                  {purchaseLogs.length} steps
+                </Badge>
+              </div>
+              <div className="max-h-80 overflow-y-auto rounded-lg bg-black/40 p-3 font-mono text-xs leading-relaxed space-y-0.5">
+                {purchaseLogs.map((log, i) => (
+                  <div key={i} className="flex gap-2">
+                    <span className="text-muted-foreground/50 shrink-0">[{log.time}]</span>
+                    <span
+                      className={
+                        log.type === "success"
+                          ? "text-emerald-400"
+                          : log.type === "error"
+                            ? "text-red-400"
+                            : log.type === "warn"
+                              ? "text-amber-400"
+                              : "text-muted-foreground"
+                      }
+                    >
+                      {log.message}
+                      {log.txHash && log.explorer && (
+                        <>
+                          {" — "}
+                          <a
+                            href={log.explorer}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline hover:text-emerald-300 transition-colors"
+                          >
+                            {log.txHash.slice(0, 10)}...{log.txHash.slice(-8)} ↗
+                          </a>
+                        </>
+                      )}
+                    </span>
+                  </div>
+                ))}
+                {purchasing && (
+                  <div className="flex gap-2 items-center">
+                    <Loader2 className="h-3 w-3 animate-spin text-amber-400" />
+                    <span className="text-amber-400/60">Processing...</span>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        </>
       )}
     </div>
   );
@@ -263,14 +330,10 @@ function LotCard({
   lot,
   onPurchase,
   purchasing,
-  isSending,
-  isConfirming,
 }: {
   lot: CacaoLot;
   onPurchase: (tokenId: number) => void;
   purchasing: boolean;
-  isSending: boolean;
-  isConfirming: boolean;
 }) {
   const isRevealed = lot.status === "revealed";
   const isRejected = lot.aiGrade === "D";
@@ -366,7 +429,7 @@ function LotCard({
               {purchasing ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {isSending ? "Sign in Wallet..." : isConfirming ? "Confirming TX..." : "Processing..."}
+                  Processing...
                 </>
               ) : (
                 <>
