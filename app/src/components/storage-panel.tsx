@@ -36,8 +36,10 @@ export function StoragePanel({ data, onReadingStored }: StoragePanelProps) {
   const [lotId, setLotId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [agentLogs, setAgentLogs] = useState<LogEntry[]>([]);
   const [analysis, setAnalysis] = useState<Record<string, unknown> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const agentLogEndRef = useRef<HTMLDivElement>(null);
 
   const total = data.length;
   const progress = total > 0 ? (stored / total) * 100 : 0;
@@ -47,9 +49,18 @@ export function StoragePanel({ data, onReadingStored }: StoragePanelProps) {
     setLogs((prev) => [...prev, { time, message, type }]);
   }, []);
 
+  const addAgentLog = useCallback((message: string, type: LogEntry["type"] = "info") => {
+    const time = new Date().toLocaleTimeString();
+    setAgentLogs((prev) => [...prev, { time, message, type }]);
+  }, []);
+
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
+
+  useEffect(() => {
+    agentLogEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [agentLogs]);
 
   const handleStore = useCallback(async () => {
     if (!isConnected || data.length === 0) return;
@@ -110,9 +121,13 @@ export function StoragePanel({ data, onReadingStored }: StoragePanelProps) {
               addLog(`Reading ${event.index + 1}/${total} stored — TX: ${event.hash}`, "success");
             } else if (event.type === "reading_error") {
               addLog(`Reading ${event.index} failed: ${event.error}`, "error");
+            } else if (event.type === "agent_event") {
+              const logType = event.step === "error" ? "error" : event.step === "complete" || event.step === "scoring" ? "success" : "info";
+              addAgentLog(event.message, logType as LogEntry["type"]);
             } else if (event.type === "analysis_complete") {
               setAnalysis(event.analysis);
               addLog(`AI Analysis complete — Grade: ${event.analysis?.publicMetadata?.qualityGrade}, Score: ${event.analysis?.publicMetadata?.qualityScore}/100`, "success");
+              addAgentLog(`Analysis complete — metadata ready for NFT minting`, "success");
             } else if (event.type === "analysis_error") {
               addLog(`AI Analysis failed: ${event.message}`, "error");
             } else if (event.type === "complete") {
@@ -304,6 +319,43 @@ export function StoragePanel({ data, onReadingStored }: StoragePanelProps) {
           </CardContent>
         </Card>
       )}
+      {/* Agent Interaction Log */}
+      {agentLogs.length > 0 && (
+        <Card className="border-blue-500/30 bg-card/50">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-lg">🤖</span>
+              <h3 className="text-sm font-medium uppercase tracking-wider text-blue-400">
+                Cocoa Agent Interaction
+              </h3>
+              <Badge variant="secondary" className="text-[10px] bg-blue-500/10 text-blue-400">
+                {agentLogs.length} steps
+              </Badge>
+            </div>
+            <div className="max-h-80 overflow-y-auto rounded-lg bg-black/40 p-3 font-mono text-xs leading-relaxed">
+              {agentLogs.map((log, i) => (
+                <div key={i} className="flex gap-2">
+                  <span className="text-muted-foreground/50 shrink-0">[{log.time}]</span>
+                  <span className="text-blue-400/60 shrink-0">🍫</span>
+                  <span
+                    className={
+                      log.type === "success"
+                        ? "text-emerald-400"
+                        : log.type === "error"
+                          ? "text-red-400"
+                          : "text-blue-300/80"
+                    }
+                  >
+                    {log.message}
+                  </span>
+                </div>
+              ))}
+              <div ref={agentLogEndRef} />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* AI Analysis Results */}
       {analysis && (() => {
         const pub = (analysis as Record<string, unknown>).publicMetadata as Record<string, unknown> | undefined;
