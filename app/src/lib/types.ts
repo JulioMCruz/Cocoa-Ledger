@@ -28,4 +28,4 @@ export interface IoTReading {
   certification: string;
 }
 
-export type StorageStatus = "idle" | "creating-lot" | "storing" | "finalizing" | "done" | "error";
+export type StorageStatus = "idle" | "creating-lot" | "creating_lot" | "storing" | "finalizing" | "done" | "error";
