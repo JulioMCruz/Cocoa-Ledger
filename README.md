@@ -1,485 +1,409 @@
 # 🌱 Cocoa Ledger
 
-Bringing transparency and trust to the cacao supply chain through IoT, blockchain privacy, and AI-powered quality analysis.
+**From farm to blockchain — verifiable cacao quality, powered by AI and privacy.**
 
-## The Problem
+> Every cacao harvest tells a story. Cocoa Ledger puts that story on-chain — private where it matters, transparent where it counts.
 
-Cacao farmers in Latin America face critical challenges:
-- No traceability — buyers can't verify origin or quality
-- Low income — intermediaries capture most of the value
-- No technology — manual processes, no data history
-- Quality issues — inconsistent fermentation, diseases, no monitoring
+---
 
-Meanwhile, global cacao scarcity is increasing due to climate change, aging crops, and farmer abandonment.
+## 🏆 Built for EthCC 26 — Rayls Hackathon #2
 
-## The Solution
+**Challenge:** Autonomous Institution Agent + Confidential NFT Reveal
 
-Cocoa Ledger transforms each cacao harvest lot into a verifiable digital asset:
+**Live Demo:** [cocoa-ledger-app.netlify.app](https://cocoa-ledger-app.netlify.app)
 
-1. **IoT sensors** monitor farm conditions (temperature, humidity, soil, rainfall)
-2. **Private blockchain** stores all raw data — only the farmer can see it
-3. **AI agent** analyzes the data and scores harvest quality
-4. **Price oracle** fetches live cacao market prices from ICE Futures US for real-time lot valuation
-5. **Confidential NFT** packages the analysis — investors buy to unlock private data
+---
 
-## Why Blockchain Instead of a Database?
+## 💡 The Problem
 
-A traditional database could store IoT data. But it can't solve the **trust problem**:
+The global cacao market is broken:
 
-| Problem | Database | Rayls Privacy Node |
-|---------|----------|-------------------|
-| Farmer claims "organic" | No way to verify | Every reading is an immutable transaction |
-| Intermediary alters quality data | DB admin can edit records | Nobody can modify on-chain data |
-| Buyer wants proof of conditions | Trust the seller's word | Verify against blockchain transactions |
-| Auditor needs history | Export from DB (tamperable) | Full on-chain audit trail |
-| Cross-border trade compliance | Each party has own DB | Shared verifiable ledger |
+- **$130B chocolate industry** — yet farmers earn less than $2/day
+- **Zero traceability** — buyers can't verify origin, quality, or growing conditions
+- **Blind trust** — intermediaries control information, manipulate pricing
+- **No data** — manual processes, no monitoring, no history
+- **Growing scarcity** — climate change, aging crops, farmer abandonment
 
-The Privacy Node specifically solves what a public blockchain cannot:
-- **Raw IoT data is commercially sensitive** — a competitor could undercut the farmer's pricing if they see real conditions
-- **GPS coordinates reveal farm locations** — security risk in regions with land disputes
-- **Volume and pricing data** — gives unfair negotiation advantage if public
-- **Regulatory compliance** — GDPR-like data protection requirements in some markets
+A buyer today receives a sample, pays $200-500 for lab testing, waits 1-2 weeks, negotiates price on the seller's word, and hopes the full shipment matches the sample. There's no verifiable link between growing conditions and final quality.
 
-The Rayls Privacy Node is **gasless** (zero transaction cost), making it viable to store thousands of IoT readings that would be prohibitively expensive on Ethereum mainnet.
+## ✅ The Solution
 
-## How Quality Scoring Works
+Cocoa Ledger transforms each cacao harvest into a **verifiable, tradeable digital asset** by combining four technologies:
 
-The AI agent (Cocoa Agent) uses a multi-factor scoring system based on cacao agronomics:
+| Layer | What | Why |
+|-------|------|-----|
+| 🌡️ **IoT Sensors** | Monitor temperature, humidity, soil pH, rainfall, light | Real data from the field — not self-reported claims |
+| 🔒 **Rayls Privacy Node** | Store all raw readings on a gasless private blockchain | Immutable, tamper-proof, commercially sensitive data stays private |
+| 🤖 **AI Oracle Agent** | Analyze IoT data + fetch live commodity prices | Autonomous quality scoring + market-anchored valuations |
+| 🎨 **Confidential NFT** | Package the analysis into a tradeable asset | Buyers purchase access to verified private data |
+
+### The Flow
+
+```
+🌡️ IoT Sensors → 🔒 Privacy Chain → 🤖 AI Analysis + Price Oracle → 🎨 NFT Mint → 🏪 Marketplace → 💰 Purchase → 🔓 Data Revealed
+```
+
+**Before purchase:** Buyer sees quality grade, score, growing conditions summary.
+**After purchase:** Buyer unlocks GPS locations, per-device stats, anomaly reports, price benchmarks, producer recommendations.
+
+---
+
+## 🤖 Cocoa Agent — The Autonomous AI Oracle
+
+The Cocoa Agent is the brain of the system — an autonomous AI that performs two critical functions:
+
+### 1. Quality Analysis Oracle
+
+Reads all on-chain IoT data for a cacao lot and produces a comprehensive quality assessment using Google Gemini 2.5:
+
+- **Multi-factor scoring** — Temperature stability, humidity, soil pH, rainfall, soil moisture, light intensity
+- **Per-device analysis** — Cross-device consistency detection
+- **Anomaly detection** — Identifies equipment failures, environmental events, data irregularities
+- **Holistic grading** — S/A/B/C/D system based on cacao agronomics
+
+### 2. Price Oracle
+
+Fetches **live cacao commodity prices** from global markets and uses them to produce real-world valuations:
+
+```
+Market Price ($8,145/ton) × Lot Volume (2,500 kg) × Quality Premium (1.2x) = $24,435
+```
+
+**Data Sources:**
+| Priority | Source | Type |
+|----------|--------|------|
+| 1st | Trading Economics | Real-time ICE Futures |
+| 2nd | World Bank Commodity API | Monthly reference prices |
+| 3rd | Verified fallback | Last known market price |
+
+Prices are cached (5 min TTL), transparent (every response shows sources checked), and include 15 months of historical data for trend analysis.
+
+### Agent API
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/health` | GET | Health check |
+| `/api/analyze-lot` | POST | AI quality analysis for a cacao lot |
+| `/api/oracle/price` | GET | Current cacao market price (ICE Futures US) |
+| `/api/oracle/history` | GET | 15 months historical price data |
+| `/api/oracle/valuation` | POST | Lot market valuation (price × volume × quality) |
+
+---
+
+## 📊 Quality Scoring System
 
 ### Grading Criteria
 
-| Grade | Score | Meaning | Typical Use |
-|-------|-------|---------|------------|
-| **S** | 95-100 | Exceptional — perfect growing conditions across all metrics | Single-origin premium chocolate, auction lots |
-| **A** | 85-94 | Excellent — consistently good conditions with minor variations | Fine chocolate, specialty couverture |
-| **B** | 70-84 | Good — generally acceptable with some deviations | Quality blends, mid-range chocolate |
-| **C** | 50-69 | Fair — notable issues in one or more metrics | Bulk processing, commodity market |
-| **D** | 0-49 | Poor — significant problems detected | Requires intervention, not market-ready |
+| Grade | Score | Meaning | Market Use | Price Premium |
+|-------|-------|---------|------------|---------------|
+| 🏆 **S** | 95-100 | Exceptional — perfect conditions | Single-origin premium, auction lots | **+35%** |
+| 🥇 **A** | 85-94 | Excellent — consistently good | Fine chocolate, specialty couverture | **+20%** |
+| 🥈 **B** | 70-84 | Good — acceptable with deviations | Quality blends, mid-range | **+5%** |
+| 🥉 **C** | 50-69 | Fair — notable issues | Bulk processing, commodity | **-10%** |
+| ⚠️ **D** | 0-49 | Poor — significant problems | Requires intervention | **-30%** |
 
 ### Scoring Factors
 
-Each factor is weighted based on its impact on cacao quality:
+| Factor | Ideal Range | Weight | Why It Matters |
+|--------|------------|--------|----------------|
+| Temperature | 20-30°C | High | Bean development, flavor precursors |
+| Humidity | 70-90% | High | Stress (low) vs disease risk (high) |
+| Soil pH | 5.0-7.5 | Medium | Nutrient absorption |
+| Rainfall | 100-200mm/mo | Medium | Drought or flooding impact |
+| Soil Moisture | 40-80% | Medium | Root health |
+| Light Intensity | 10K-40K lux | Low | Cacao prefers partial shade |
+| Cross-device consistency | Low variance | High | Micro-problems detection |
+| Anomaly count | Zero | High | Equipment failure, events |
 
-| Factor | Ideal Range | Impact on Score |
-|--------|------------|----------------|
-| **Temperature** | 20-30°C | High — affects bean development and flavor precursors |
-| **Humidity** | 70-90% | High — too low = stress, too high = disease risk |
-| **Soil pH** | 5.0-7.5 | Medium — affects nutrient absorption |
-| **Rainfall** | 100-200mm/month | Medium — drought or flooding impacts yield |
-| **Soil Moisture** | 40-80% | Medium — root health indicator |
-| **Light Intensity** | 10K-40K lux | Low — cacao prefers partial shade |
-| **Cross-device consistency** | Low variance | High — inconsistency suggests micro-problems |
-| **Anomaly count** | Zero | High — spikes indicate equipment failure or events |
+### Valuation Example
 
-The AI analyzes all readings together, computing:
-1. **Averages** per metric across all devices
-2. **Per-device statistics** to detect inconsistencies
-3. **Anomaly detection** — readings outside expected ranges
-4. **Temporal patterns** — is quality improving or degrading over time?
-5. **Regional benchmarks** — how do conditions compare to known premium cacao regions?
+A 2,500 kg lot at current market rates:
 
-The final score is the AI's holistic assessment considering all factors. Two lots with identical temperature but different soil pH and humidity patterns will score differently.
+| Grade | Base Value | Multiplier | Final Value |
+|-------|-----------|------------|-------------|
+| **S** (Score 97) | $20,363 | 1.35x | **$27,489** |
+| **A** (Score 91) | $20,363 | 1.20x | **$24,435** |
+| **B** (Score 75) | $20,363 | 1.05x | **$21,381** |
+| **C** (Score 55) | $20,363 | 0.90x | **$18,326** |
+| **D** (Score 30) | $20,363 | 0.70x | **$14,254** |
 
-## Why Buyers Use Blockchain for Harvest Purchases
+---
 
-This isn't just buying chocolate — it's **commodity trading with verifiable quality data**.
+## 🔒 Privacy Architecture
 
-### The Buyer's Problem Today
+### Why Privacy Matters
 
-A cacao buyer (chocolate manufacturer, commodity trader, specialty roaster) currently:
-1. Receives a sample from a broker
-2. Sends it to a lab ($200-500, takes 1-2 weeks)
-3. Negotiates price based on the lab report
-4. Has no visibility into growing conditions
-5. Discovers quality issues only after receiving the full shipment
+Raw IoT data is commercially sensitive. Making it public would:
+- Let competitors undercut farmer pricing
+- Expose farm GPS locations (security risk in regions with land disputes)
+- Give unfair negotiation advantage to buyers
+- Violate data protection regulations
 
-### What Cocoa Ledger Changes
-
-```
-Traditional: Sample → Lab → Negotiate → Ship → Hope for the best
-Cocoa Ledger: Browse marketplace → See AI-verified growing data → Buy with confidence
-```
-
-**Before purchase (public metadata):**
-- Quality grade and score based on real IoT data
-- Growing conditions summary (not just a lab test of one sample)
-- AI assessment of crop health and recommended use
-- On-chain verification that data hasn't been tampered with
-
-**After purchase (private metadata unlocked):**
-- Exact farm location for supply chain planning
-- Per-device sensor data for due diligence
-- Price benchmark per kg based on quality
-- Producer recommendations (feedback loop to farmer)
-- Full IoT data hash for independent verification
-
-### Why This Works on Blockchain
-
-1. **Trust without intermediaries** — The buyer trusts the data because it's on-chain and AI-verified, not because a broker says it's good
-2. **Instant settlement** — Buy the NFT, receive the data. No weeks of negotiation
-3. **Provenance is permanent** — The entire history of that lot (from seed to sale) is immutable
-4. **Secondary market** — Buyers can resell harvest rights to other manufacturers
-5. **DeFi integration** — Harvest NFTs can be used as collateral for trade financing
-
-### The NFT Represents a Real Asset
-
-The NFT is not speculative art — it's a **digital deed to a cacao harvest lot** with:
-- Verifiable growing conditions (thousands of IoT readings)
-- AI quality certification
-- Private data access rights
-- Transferable ownership
-
-When a chocolate manufacturer buys this NFT, they're buying **verified, data-backed access to a specific harvest** — something that doesn't exist in today's cacao market.
-
-## Architecture
+### Three-Tier Data Model
 
 ```mermaid
 graph TB
-    subgraph "App 1 — Farmer Dashboard (Netlify)"
-        A[IoT Devices - simulated CSV] -->|sensor data| B[NextJS Frontend]
-        B -->|chunked API calls| C[Netlify Server Functions]
-        C -->|auto-signed TX, gasless| D[Rayls Privacy Node]
-        D -->|lot finalized| E[Trigger Agent via proxy]
+    subgraph "🔴 Private — Farmer Only"
+        A[Raw IoT readings - thousands of data points]
+        B[GPS coordinates - exact farm locations]
+        C[Producer identity]
+        D[Historical sale prices]
+        E[Detailed lab results]
     end
 
-    subgraph "App 2 — Cocoa Agent (VPS)"
-        E -->|POST /api/analyze-lot| F[Read all TX from blockchain]
-        F -->|raw IoT data| G[Google Gemini 2.5 AI]
-        G -->|quality metadata| H[Return public + private data]
+    subgraph "🟢 Public — Everyone Sees"
+        F[Quality Grade S/A/B/C/D]
+        G[Quality Score 0-100]
+        H[Average conditions summary]
+        I[General region]
+        J[Recommended use]
+        K[Oracle market valuation]
+    end
+
+    subgraph "🟡 Post-Purchase — NFT Buyer Unlocks"
+        L[Full IoT data report]
+        M[Per-device statistics]
+        N[Anomaly detection details]
+        O[Precise price per kg benchmark]
+        P[Producer recommendations]
+        Q[GPS area coverage]
+    end
+
+    A --> F
+    A --> L
+    B --> N
+    C --> P
+    E --> O
+```
+
+### Why Blockchain Instead of a Database?
+
+| Challenge | Traditional Database | Rayls Privacy Node |
+|-----------|---------------------|-------------------|
+| "Is this organic?" | No way to verify | Every reading is an immutable transaction |
+| Data tampering | Admin can edit records | Nobody can modify on-chain data |
+| Proof of conditions | Trust the seller | Verify against blockchain transactions |
+| Audit trail | Exportable, tamperable | Immutable on-chain history |
+| Cross-border compliance | Fragmented databases | Shared verifiable ledger |
+| Cost | Server infrastructure | **Gasless** — zero transaction fees |
+
+---
+
+## 🏗️ Architecture
+
+```mermaid
+graph TB
+    subgraph "App 1 — Farmer Dashboard"
+        A[🌡️ IoT Devices] -->|sensor data| B[NextJS + RainbowKit]
+        B -->|chunked API calls| C[Netlify Server Functions]
+        C -->|auto-signed TX, gasless| D[Rayls Privacy Node]
+        D -->|lot finalized| E[Trigger Cocoa Agent]
+    end
+
+    subgraph "App 2 — Cocoa Agent"
+        E -->|analyze lot| F[Read on-chain IoT data]
+        F -->|raw readings| G[🧠 Google Gemini 2.5 AI]
+        G -->|quality metadata| H[Quality Score + Grade]
+        E -->|price request| I[📈 Price Oracle]
+        I -->|market data| J[Lot Valuation]
     end
 
     subgraph "App 3 — NFT Marketplace"
-        H -->|metadata| I[Mint Confidential NFT]
-        I -->|bridge to public| J[Public Chain Marketplace]
-        J -->|investor buys| K[Reveal Private Data]
+        H -->|metadata| K[🎨 Mint Confidential NFT]
+        J -->|valuation| K
+        K -->|bridge| L[Public Chain Marketplace]
+        L -->|investor buys| M[🔓 Reveal Private Data]
     end
 
     subgraph "Rayls Infrastructure"
-        D --- L[Privacy Node - Chain 800000 - Gasless]
-        J --- M[Public Chain - Chain 7295799 - USDr gas]
-        L <-->|relayer - lock/mint| M
+        D --- N[Privacy Node · Chain 800000 · Gasless]
+        L --- O[Public Chain · Chain 7295799 · USDr gas]
+        N <-->|relayer · lock/mint| O
     end
 
     style A fill:#22c55e,color:#000
     style G fill:#3b82f6,color:#fff
-    style I fill:#a855f7,color:#fff
-    style L fill:#1e293b,color:#fff
-    style M fill:#1e293b,color:#fff
+    style I fill:#f59e0b,color:#000
+    style K fill:#a855f7,color:#fff
+    style N fill:#1e293b,color:#fff
+    style O fill:#1e293b,color:#fff
 ```
 
-## Data Flow
+---
 
-```mermaid
-graph LR
-    A[🌡️ IoT Sensors] --> B[📱 Farmer App]
-    B --> C[🔒 Privacy Node]
-    C --> D[🤖 AI Agent]
-    D --> E[🎨 NFT Mint]
-    E --> F[🏪 Marketplace]
-    F --> G[💰 Investor Buys]
-    G --> H[🔓 Data Revealed]
-```
-
-## Privacy Model
-
-```mermaid
-graph TB
-    subgraph "Private — Only Farmer Sees"
-        A[Raw IoT readings]
-        B[GPS coordinates]
-        C[Producer identity]
-        D[Sale prices]
-        E[Lab results]
-    end
-
-    subgraph "Public — Everyone Sees"
-        F[Quality Grade S/A/B/C/D]
-        G[Quality Score 0-100]
-        H[Avg Temperature]
-        I[Region - general]
-        J[Recommended Use]
-    end
-
-    subgraph "Post-Purchase — NFT Buyer Sees"
-        K[Consolidated IoT report]
-        L[Per-device statistics]
-        M[Anomaly detection]
-        N[Price estimate per kg]
-        O[Producer recommendations]
-    end
-
-    A --> F
-    A --> K
-    B --> M
-    C --> O
-    E --> N
-```
-
-## Farmer Journey
+## 🚜 Farmer Journey
 
 ```mermaid
 sequenceDiagram
     actor Farmer
-    participant App as App 1 - Farmer Dashboard
-    participant API as Netlify API (server-side)
-    participant PN as Rayls Privacy Node
-    participant Agent as App 2 - Cocoa Agent
-    participant Market as App 3 - Marketplace
+    participant App as Farmer Dashboard
+    participant API as Netlify API
+    participant PN as Privacy Node
+    participant Agent as Cocoa Agent
+    participant Oracle as Price Oracle
 
-    Farmer->>App: Connect wallet (RainbowKit)
-    App-->>Farmer: Redirect to dashboard
-
-    Farmer->>App: Select dataset (10/50/100/1000 readings)
-    Farmer->>App: Click "Read IoT Farm Devices"
-    App->>App: Load CSV, generate Job ID
-    App-->>Farmer: Display IoT readings in table
-
+    Farmer->>App: Connect wallet
+    Farmer->>App: Select IoT dataset (10-1000 readings)
     Farmer->>App: Click "Store on Privacy Node"
-    App->>API: POST /api/store-chunk {action: create_lot}
+
+    App->>API: Create lot
     API->>PN: createLot("Finca El Llano", "Colombia")
-    PN-->>API: Lot ID + TX hash
-    API-->>App: Lot created
-    App-->>Farmer: Show lot ID in progress panel
+    PN-->>App: Lot ID created
 
     loop Chunks of 5 readings
-        App->>API: POST /api/store-chunk {action: store_readings, chunk}
-        API->>PN: storeReading() x5 (auto-signed, gasless)
-        PN-->>API: TX hashes confirmed
-        API-->>App: Chunk results
-        App-->>Farmer: Update progress bar + table row status (green checkmarks)
+        App->>API: Store chunk
+        API->>PN: storeReading() x5 (gasless)
+        PN-->>App: ✅ Confirmed + progress update
     end
 
-    App->>API: POST /api/store-chunk {action: finalize}
-    API->>PN: finalizeLot(lotId)
-    PN-->>API: TX hash
-    API-->>App: Lot finalized
-    App-->>Farmer: Show "Lot finalized" in process log
+    App->>API: Finalize lot
+    API->>PN: finalizeLot()
 
-    Note over App,Agent: Agent Interaction Phase
-    App->>API: POST /api/analyze-lot {lotId}
-    API->>Agent: Forward to Cocoa Agent
-    Agent->>PN: Read all readings for lot
-    PN-->>Agent: Return IoT data (all readings)
-    Agent->>Agent: Compute averages, per-device stats
-    Agent->>Agent: AI analysis (Google Gemini 2.5)
-    Agent-->>API: Quality metadata (public + private)
-    API-->>App: Analysis results
-    App-->>Farmer: Display Cocoa Agent log + AI Quality Analysis card
+    App->>Agent: Analyze lot
+    Agent->>PN: Read all on-chain IoT data
+    Agent->>Agent: 🧠 AI quality analysis (Gemini 2.5)
+    Agent->>Oracle: 📈 Fetch market price
+    Oracle-->>Agent: $8,145/ton (ICE Futures)
+    Agent-->>App: Grade A · Score 93 · Value $24,435
 
-    Note over Agent,Market: NFT Phase (App 3)
-    Agent->>Market: POST metadata for NFT minting
-    Market->>PN: Mint confidential NFT with private metadata
-    Market->>Market: Bridge to public chain + list on marketplace
+    App-->>Farmer: Display quality card + valuation
 ```
 
-## Investor Journey
+## 💰 Investor Journey
 
 ```mermaid
 sequenceDiagram
     actor Investor
-    participant Market as App 3 - Marketplace
-    participant PC as Rayls Public Chain
-    participant PN as Rayls Privacy Node
+    participant Market as NFT Marketplace
+    participant Oracle as Price Oracle
+    participant PN as Privacy Node
 
-    Investor->>Market: Browse marketplace
-    Market-->>Investor: Show available cacao lots
+    Investor->>Market: Browse cacao lots
+    Market->>Oracle: Get current market price
+    Oracle-->>Market: $8,145/ton
 
-    Note over Investor,Market: Investor sees PUBLIC metadata only
-    Market-->>Investor: Grade: A | Score: 93/100
-    Market-->>Investor: Avg Temp: 27.5°C | Region: Colombia
-    Market-->>Investor: Recommended: Fine chocolate
+    Note over Investor,Market: PUBLIC DATA (free to view)
+    Market-->>Investor: Grade A · Score 93/100
+    Market-->>Investor: Avg Temp 27.5°C · Region: Colombia
+    Market-->>Investor: Market Value: $24,435 (+20% premium)
 
     Investor->>Market: Buy NFT (pay with USDr)
-    Market->>PC: Transfer USDr to seller
-    PC-->>Market: Payment confirmed
+    Market-->>Investor: NFT transferred
 
-    Market->>PN: Grant access to private data
-    PN-->>Investor: Reveal private metadata
-
-    Note over Investor,PN: Investor now sees PRIVATE metadata
-    Investor-->>Investor: Per-device IoT statistics
-    Investor-->>Investor: GPS coordinates & area coverage
-    Investor-->>Investor: Anomaly detection report
-    Investor-->>Investor: Price estimate: $4.50/kg
-    Investor-->>Investor: Lab quality analysis
-    Investor-->>Investor: Producer recommendations
+    Note over Investor,PN: PRIVATE DATA (unlocked)
+    PN-->>Investor: 📍 GPS coordinates & farm map
+    PN-->>Investor: 📊 Per-device IoT statistics
+    PN-->>Investor: ⚠️ Anomaly detection report
+    PN-->>Investor: 💰 Price benchmark: $9.77/kg
+    PN-->>Investor: 📋 Producer recommendations
 ```
 
-## Smart Contract Interaction
+---
 
-```mermaid
-sequenceDiagram
-    participant Client as Browser Client
-    participant API as Netlify API
-    participant Data as CocoaLedgerData.sol
-    participant Agent as Cocoa Agent
-    participant Attest as Attestation.sol
-    participant NFT as CocoaLedgerNFT.sol
-    participant Market as Marketplace.sol
-
-    Note over Client,Data: Phase 1 — Store IoT Data (Privacy Node, gasless)
-    Client->>API: POST /api/store-chunk {create_lot}
-    API->>Data: createLot(farmName, origin)
-    Data-->>API: lotId
-
-    loop Chunks of 5 readings (no timeout)
-        Client->>API: POST /api/store-chunk {store_readings, chunk}
-        API->>Data: storeReading() x5 (auto-signed)
-        Data-->>API: TX hashes
-        API-->>Client: chunk results + progress
-    end
-
-    Client->>API: POST /api/store-chunk {finalize}
-    API->>Data: finalizeLot(lotId)
-
-    Note over Client,Agent: Phase 2 — AI Analysis (Cocoa Agent)
-    Client->>API: POST /api/analyze-lot {lotId}
-    API->>Agent: Forward request
-    Agent->>Data: Read all readings from blockchain
-    Agent->>Agent: AI quality analysis (Gemini 2.5)
-    Agent-->>API: Public + Private metadata
-    API-->>Client: Display analysis results
-
-    Note over Agent,Attest: Phase 3 — On-chain Attestation (Public Chain)
-    Agent->>Attest: attest(token, approved, reason, score)
-
-    Note over Agent,NFT: Phase 4 — Mint & Bridge (Privacy → Public)
-    Agent->>NFT: mint(to, tokenId)
-    NFT->>NFT: teleportToPublicChain(to, tokenId, chainId)
-
-    Note over NFT,Market: Phase 5 — List & Trade (Public Chain)
-    Market->>Market: list(token, assetType, tokenId, amount, price)
-    Market->>Market: buy(listingId) → reveal private data
-```
-
-## Price Oracle — Cacao Market Data
-
-The Cocoa Agent doubles as a **price oracle** for the cacao commodity market, connecting real-world market data to on-chain lot valuations.
-
-### How It Works
-
-The oracle fetches live cocoa futures prices (CC contract) from multiple sources, caches them, and combines them with quality scores to estimate lot values:
-
-```
-Market Price ($8,145/ton) × Lot Volume (2,500 kg) × Quality Multiplier (1.2x for Grade A) = $24,435
-```
-
-### Oracle API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/oracle/price` | GET | Current cacao market price (ICE Futures US) |
-| `/api/oracle/history` | GET | Monthly historical prices (15 months) |
-| `/api/oracle/valuation` | POST | Lot value estimate using market price + quality |
-
-### Quality Premium Model
-
-Lots with higher quality scores command premiums over the base commodity price:
-
-| Grade | Score | Premium | Example (2,500 kg lot) |
-|-------|-------|---------|----------------------|
-| **S** | 95-100 | +35% | $27,493 |
-| **A** | 85-94 | +20% | $24,435 |
-| **B** | 70-84 | +5% | $21,380 |
-| **C** | 50-69 | -10% | $18,326 |
-| **D** | 0-49 | -30% | $14,254 |
-
-### Data Sources
-
-1. **Trading Economics** — Real-time cocoa futures from ICE exchange
-2. **World Bank** — Monthly commodity reference prices
-3. **Fallback** — Last verified market price
-
-Prices are cached for 5 minutes to minimize API calls. The oracle is fully transparent — every response includes which sources were checked and whether the data was served from cache.
-
-### Why an Oracle Matters
-
-For the NFT marketplace to function as a real commodity market, buyers need **market context**. The oracle provides:
-- **Fair pricing** — Lot values anchored to real commodity markets
-- **Quality premiums** — Data-backed price differentiation (not just the seller's word)
-- **Historical trends** — Buyers see if prices are rising or falling before purchasing
-- **Automated valuation** — No manual price negotiation needed
-
-## Technical Details
+## ⚡ Technical Highlights
 
 ### Chunked Transaction Processing
-The app stores IoT readings in **chunks of 5** to avoid serverless function timeouts:
-- Each chunk is a separate API call (~5-8 seconds)
-- Server-side auto-signing (no MetaMask popups for 1000 transactions)
-- Privacy Node is gasless — zero transaction fees
-- Progress updates after each chunk completes
-- Cancel support between chunks
+- IoT readings stored in **chunks of 5** — no serverless timeouts
+- **Server-side auto-signing** — no MetaMask popups for 1000 transactions
+- **Privacy Node is gasless** — zero fees, even for thousands of readings
+- Real-time progress updates with cancellation support
 
-### Three Log Sections
-1. **Process Log** — Every blockchain transaction with clickable Blockscout links
-2. **Cocoa Agent Interaction** — AI agent connection, analysis steps, scoring details
+### Three Log Sections (Judge-Friendly)
+1. **Process Log** — Every blockchain TX with clickable Blockscout links
+2. **Cocoa Agent Interaction** — AI connection, analysis steps, scoring
 3. **AI Quality Analysis Card** — Grade, score, price estimate, recommendations
 
-### Browser Console Logs
-Detailed colored console output for judges — every step is logged with emojis and clickable explorer links.
+### Smart Contract Suite
 
-## Project Structure
+| Contract | Chain | Purpose |
+|----------|-------|---------|
+| `CocoaLedgerData.sol` | Privacy | IoT data storage (lots + readings) |
+| `CocoaLedgerToken.sol` | Privacy → Public | Bridgeable ERC-20 |
+| `CocoaLedgerNFT.sol` | Privacy → Public | Bridgeable ERC-721 (harvest NFTs) |
+| `Attestation.sol` | Public | AI quality attestation registry |
+| `Marketplace.sol` | Public | Escrow marketplace for NFT trading |
+
+---
+
+## 📁 Project Structure
 
 ```
 cocoa-ledger/
-├── app/                         ← NextJS farmer dashboard (Netlify)
-│   ├── src/app/page.tsx         ← Landing page (hero, CTA)
-│   ├── src/app/dashboard/       ← Authenticated dashboard
-│   ├── src/app/api/             ← Server API routes
-│   │   ├── store-chunk/         ← Chunked blockchain storage
-│   │   ├── store-stream/        ← SSE streaming (fallback)
-│   │   └── analyze-lot/         ← Agent proxy (HTTPS → HTTP)
-│   ├── src/components/          ← UI: table, storage panel, logs
-│   ├── src/lib/                 ← Chain config, contract ABI, types
-│   └── public/                  ← IoT CSV datasets (10/50/100/1000)
-├── agent/                       ← Cocoa Agent — AI oracle (VPS)
-│   ├── src/index.ts             ← Express server
-│   ├── src/blockchain.ts        ← Read from Privacy Node
-│   ├── src/analyzer.ts          ← Gemini AI analysis
-│   ├── src/price-oracle.ts      ← Cacao market price oracle
-│   ├── src/types.ts             ← TypeScript types
-│   ├── skills/                  ← ETHSkills (standards, security)
-│   ├── Dockerfile               ← Container deployment
-│   └── README.md                ← OpenClaw agent setup guide
-├── contracts/                   ← Foundry smart contracts
-│   ├── src/CocoaLedgerData.sol  ← IoT storage (lots, readings)
-│   ├── src/CocoaLedgerToken.sol ← Bridgeable ERC20
-│   ├── src/CocoaLedgerNFT.sol   ← Bridgeable ERC721
-│   ├── src/Attestation.sol      ← AI attestation registry
-│   ├── src/Marketplace.sol      ← Escrow marketplace
-│   └── script/                  ← Deploy scripts
-└── docs/                        ← Deployment and technical guides
+├── app/                             ← Farmer Dashboard (Netlify)
+│   ├── src/app/page.tsx             ← Landing page
+│   ├── src/app/dashboard/           ← Authenticated dashboard
+│   ├── src/app/api/
+│   │   ├── store-chunk/             ← Chunked blockchain storage
+│   │   ├── analyze-lot/             ← Agent proxy
+│   │   └── oracle/                  ← Price oracle proxy (price, history, valuation)
+│   ├── src/components/              ← UI components
+│   ├── src/lib/                     ← Chain config, ABI, types
+│   └── public/                      ← IoT CSV datasets (10/50/100/1000)
+│
+├── agent/                           ← Cocoa Agent — AI Oracle (VPS)
+│   ├── src/index.ts                 ← Express server (6 endpoints)
+│   ├── src/blockchain.ts            ← Read from Privacy Node
+│   ├── src/analyzer.ts              ← Gemini AI quality analysis
+│   ├── src/price-oracle.ts          ← Multi-source cacao price oracle
+│   ├── src/types.ts                 ← TypeScript types
+│   ├── skills/                      ← Agent skills (standards, security, oracle)
+│   └── Dockerfile                   ← Container deployment
+│
+├── contracts/                       ← Solidity Smart Contracts (Foundry)
+│   ├── src/CocoaLedgerData.sol      ← IoT storage
+│   ├── src/CocoaLedgerToken.sol     ← Bridgeable ERC-20
+│   ├── src/CocoaLedgerNFT.sol       ← Bridgeable ERC-721
+│   ├── src/Attestation.sol          ← AI attestation registry
+│   ├── src/Marketplace.sol          ← Escrow marketplace
+│   └── script/                      ← Deploy & interaction scripts
+│
+└── docs/                            ← Deployment guides
 ```
 
-## Tech Stack
+## 🛠️ Tech Stack
 
-| Component | Technology |
-|-----------|-----------|
-| Frontend | Next.js 16, Tailwind, shadcn/ui, RainbowKit |
-| Contracts | Solidity 0.8.24, Foundry, Rayls Protocol SDK |
-| Agent | TypeScript, Express, Google Gemini |
-| Privacy Chain | Rayls Privacy Node (gasless, EVM) |
-| Public Chain | Rayls Public Chain (reth-based) |
-| Deploy | Netlify (app), Hetzner VPS (agent) |
+| Component | Technology | Why |
+|-----------|-----------|-----|
+| Frontend | Next.js 16, Tailwind, shadcn/ui, RainbowKit | Modern, fast, wallet-native |
+| Contracts | Solidity 0.8.24, Foundry, Rayls SDK | Battle-tested, privacy-first |
+| AI Agent | TypeScript, Express, Google Gemini 2.5 | Real-time quality analysis |
+| Price Oracle | Multi-source (Trading Economics, World Bank) | Market-anchored valuations |
+| Privacy Chain | Rayls Privacy Node (gasless, EVM) | Zero-cost data storage |
+| Public Chain | Rayls Public Chain (reth-based) | NFT trading & attestations |
+| Deploy | Netlify (app) + Hetzner VPS (agent) | Serverless + dedicated |
 
-## Quick Start
+## 🚀 Quick Start
 
 ```bash
-# Contracts
+# Smart Contracts
 cd contracts && forge install && npm install
 forge script script/DeployCocoaLedger.s.sol --rpc-url $PRIVACY_NODE_RPC_URL --broadcast --legacy
 
-# App
+# Farmer Dashboard
 cd app && npm install
 cp .env.local.example .env.local  # fill in values
 npm run dev
 
-# Agent
+# Cocoa Agent (AI Oracle + Price Oracle)
 cd agent && npm install
 cp .env.example .env  # fill in keys
 npx tsx src/index.ts
 ```
 
-## Built for EthCC 26 — Rayls Hackathon #2
+---
 
-Challenge: Autonomous Institution Agent + Confidential NFT Reveal
+## 🌍 Why This Matters
+
+Cocoa Ledger isn't just a hackathon project — it's a blueprint for **how commodity markets should work**:
+
+1. **Farmers get paid fairly** — Quality data proves their beans are premium, commanding higher prices
+2. **Buyers trade with confidence** — Verifiable growing conditions, not broker promises
+3. **AI removes gatekeepers** — Autonomous quality scoring eliminates expensive, slow lab testing
+4. **Privacy protects the vulnerable** — Farmer data stays private until they choose to sell access
+5. **Market prices anchor reality** — Oracle-powered valuations prevent manipulation
+
+The cacao market is worth $130 billion. Every dollar of that moves on trust. Cocoa Ledger replaces trust with **proof**.
+
+---
+
+**Built with 🍫 for EthCC 26 — Rayls Hackathon #2**
