@@ -3,6 +3,11 @@ import express from "express";
 import cors from "cors";
 import { getLot, getAllReadings, getNextLotId } from "./blockchain";
 import { analyzeLot } from "./analyzer";
+import {
+  fetchCacaoPrice,
+  estimateLotValue,
+  getHistoricalContext,
+} from "./price-oracle";
 
 const app = express();
 app.use(cors());
@@ -73,10 +78,82 @@ app.post("/api/analyze-lot", async (req, res) => {
   }
 });
 
+// ─── Price Oracle Endpoints ───
+
+// GET /api/oracle/price — current cacao market price
+app.get("/api/oracle/price", async (_req, res) => {
+  try {
+    const priceData = await fetchCacaoPrice();
+    console.log(
+      `[oracle] Price request: $${priceData.price}/ton via ${priceData.source}${priceData.cached ? " (cached)" : ""}`
+    );
+    res.json(priceData);
+  } catch (error: any) {
+    console.error("[oracle] Price fetch error:", error.message);
+    res.status(500).json({ error: "Failed to fetch price", details: error.message });
+  }
+});
+
+// GET /api/oracle/history — historical price data
+app.get("/api/oracle/history", (_req, res) => {
+  const history = getHistoricalContext();
+  res.json({
+    history,
+    unit: "USD/ton",
+    exchange: "ICE Futures US",
+    contract: "CC (Cocoa Futures)",
+    months: history.length,
+  });
+});
+
+// POST /api/oracle/valuation — estimate lot value using market price + quality
+app.post("/api/oracle/valuation", async (req, res) => {
+  try {
+    const { lotId, lotVolumeKg, qualityScore, qualityGrade } = req.body;
+
+    if (!lotVolumeKg || !qualityScore) {
+      res.status(400).json({
+        error: "lotVolumeKg and qualityScore are required",
+      });
+      return;
+    }
+
+    const marketPrice = await fetchCacaoPrice();
+    const valuation = estimateLotValue(
+      marketPrice.pricePerKg,
+      lotVolumeKg,
+      qualityScore
+    );
+
+    const result = {
+      lotId: lotId || null,
+      marketPrice,
+      lotVolumeKg,
+      qualityScore,
+      qualityGrade: qualityGrade || "N/A",
+      ...valuation,
+      historicalContext: getHistoricalContext().slice(-6),
+      valuedAt: new Date().toISOString(),
+    };
+
+    console.log(
+      `[oracle] Valuation: ${lotVolumeKg}kg × $${marketPrice.pricePerKg}/kg × ${valuation.qualityMultiplier} = $${valuation.estimatedValue}`
+    );
+
+    res.json(result);
+  } catch (error: any) {
+    console.error("[oracle] Valuation error:", error.message);
+    res.status(500).json({ error: "Valuation failed", details: error.message });
+  }
+});
+
 const PORT = parseInt(process.env.PORT || "3001", 10);
 
 app.listen(PORT, () => {
   console.log(`🍫 Cocoa Ledger Agent running on port ${PORT}`);
-  console.log(`   Health: http://localhost:${PORT}/api/health`);
-  console.log(`   Analyze: POST http://localhost:${PORT}/api/analyze-lot`);
+  console.log(`   Health:     http://localhost:${PORT}/api/health`);
+  console.log(`   Analyze:    POST http://localhost:${PORT}/api/analyze-lot`);
+  console.log(`   Oracle:     http://localhost:${PORT}/api/oracle/price`);
+  console.log(`   History:    http://localhost:${PORT}/api/oracle/history`);
+  console.log(`   Valuation:  POST http://localhost:${PORT}/api/oracle/valuation`);
 });

@@ -99,3 +99,43 @@ export interface AnalysisResponse {
   publicMetadata: PublicMetadata;
   privateMetadata: PrivateMetadata;
 }
+
+// === Price Oracle Types ===
+
+export interface PriceData {
+  price: number;            // USD per metric ton
+  unit: string;             // "USD/ton"
+  pricePerKg: number;       // USD per kg
+  source: string;           // data source name
+  timestamp: string;        // ISO 8601
+  exchange: string;         // exchange name
+  contract: string;         // futures contract identifier
+  currency: string;         // "USD"
+  cached: boolean;          // whether this was served from cache
+  sources_checked: string[];// which sources were attempted
+}
+
+export interface PriceHistory {
+  date: string;             // "YYYY-MM"
+  price: number;            // USD per metric ton
+  unit: string;
+}
+
+export interface OracleConfig {
+  cacheTtlMs: number;
+  sources: string[];
+}
+
+export interface LotValuation {
+  lotId: number;
+  marketPrice: PriceData;
+  lotVolumeKg: number;
+  qualityScore: number;
+  qualityGrade: string;
+  baseValue: number;
+  qualityMultiplier: number;
+  estimatedValue: number;
+  premiumPercentage: number;
+  historicalContext: PriceHistory[];
+  valuedAt: string;
+}
