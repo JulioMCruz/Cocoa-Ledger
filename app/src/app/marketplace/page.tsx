@@ -56,7 +56,8 @@ interface RevealedData {
   bridgeTxHash?: string;
   mintExplorer?: string;
   bridgeExplorer?: string;
-  [key: string]: unknown;
+  purchaseTxHash?: string;
+  purchaseExplorer?: string;
 }
 
 const GRADE_COLORS: Record<string, string> = {
