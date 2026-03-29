@@ -10,6 +10,7 @@ export async function POST(req: NextRequest) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(120000), // 2 min — AI analysis + attestation takes time
     });
 
     const data = await res.json();
