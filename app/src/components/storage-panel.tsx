@@ -156,6 +156,7 @@ export function StoragePanel({ data, onReadingStored }: StoragePanelProps) {
           const agentData = await agentRes.json();
           const pub = agentData?.publicMetadata;
           const priv = agentData?.privateMetadata;
+          const attestation = agentData?.attestation;
           console.log("%c🎯 AI ANALYSIS COMPLETE", "color: #22c55e; font-size: 14px; font-weight: bold");
           console.log("%c📊 Public Metadata:", "color: #a855f7; font-weight: bold", pub);
           console.log("%c🔒 Private Metadata:", "color: #f59e0b; font-weight: bold", priv);
@@ -164,6 +165,22 @@ export function StoragePanel({ data, onReadingStored }: StoragePanelProps) {
           addAgentLog(`Price estimate: $${priv?.priceEstimatePerKg}/kg`, "success");
           addAgentLog(`IoT data hash: ${priv?.iotDataHash}`, "info");
           addAgentLog(`Recommended use: ${pub?.recommendedUse}`, "success");
+
+          // Attestation on-chain
+          if (attestation?.txHash) {
+            console.log(`%c📝 ATTESTATION ON-CHAIN — TX: ${attestation.txHash}`, "color: #f59e0b; font-size: 12px; font-weight: bold");
+            console.log(`%c🔗 ATTESTATION: ${attestation.explorerUrl}`, "color: #f59e0b; font-weight: bold");
+            console.log(`%c   Chain: ${attestation.chain}`, "color: #f59e0b");
+            console.log(`%c   Attester: ${attestation.attester}`, "color: #f59e0b");
+            console.log(`%c   Approved: ${attestation.approved}`, "color: #f59e0b");
+            addAgentLog(`✅ On-chain attestation posted — TX: ${attestation.txHash}`, "success");
+            addAgentLog(`🔗 Explorer: ${attestation.explorerUrl}`, "success");
+            addAgentLog(`Chain: ${attestation.chain} | Attester: ${attestation.attester}`, "info");
+            addLog(`📝 Attestation TX: ${attestation.txHash}`, "success");
+          } else {
+            addAgentLog("⚠️ Attestation skipped (no contract configured)", "info");
+          }
+
           addAgentLog("Metadata ready for NFT minting", "success");
           setAnalysis(agentData);
           addLog(`AI Analysis: Grade ${pub?.qualityGrade}, Score ${pub?.qualityScore}/100`, "success");
@@ -357,23 +374,76 @@ export function StoragePanel({ data, onReadingStored }: StoragePanelProps) {
               </Badge>
             </div>
             <div className="max-h-80 overflow-y-auto rounded-lg bg-black/40 p-3 font-mono text-xs leading-relaxed">
-              {agentLogs.map((log, i) => (
-                <div key={i} className="flex gap-2">
-                  <span className="text-muted-foreground/50 shrink-0">[{log.time}]</span>
-                  <span className="text-blue-400/60 shrink-0">🍫</span>
-                  <span
-                    className={
-                      log.type === "success"
-                        ? "text-emerald-400"
-                        : log.type === "error"
-                          ? "text-red-400"
-                          : "text-blue-300/80"
-                    }
-                  >
-                    {log.message}
-                  </span>
-                </div>
-              ))}
+              {agentLogs.map((log, i) => {
+                // Make TX hashes clickable
+                const txMatch = log.message.match(/TX: (0x[a-fA-F0-9]+)/);
+                // Make explorer URLs clickable
+                const urlMatch = log.message.match(/(https?:\/\/[^\s]+)/);
+
+                let content;
+                if (txMatch) {
+                  const txHash = txMatch[1];
+                  const beforeTx = log.message.slice(0, txMatch.index);
+                  const afterTx = log.message.slice((txMatch.index || 0) + txMatch[0].length);
+                  // Determine explorer URL based on content
+                  const isAttestation = log.message.includes("Attestation") || log.message.includes("attestation");
+                  const explorerBase = isAttestation
+                    ? "https://testnet-explorer.rayls.com"
+                    : "https://blockscout-privacy-node-0.rayls.com";
+                  content = (
+                    <>
+                      {beforeTx}TX:{" "}
+                      <a
+                        href={`${explorerBase}/tx/${txHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline hover:text-emerald-300 transition-colors"
+                      >
+                        {txHash.slice(0, 10)}...{txHash.slice(-8)}
+                      </a>
+                      {afterTx}
+                    </>
+                  );
+                } else if (urlMatch) {
+                  const url = urlMatch[1];
+                  const beforeUrl = log.message.slice(0, urlMatch.index);
+                  const afterUrl = log.message.slice((urlMatch.index || 0) + url.length);
+                  content = (
+                    <>
+                      {beforeUrl}
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline hover:text-emerald-300 transition-colors"
+                      >
+                        {url}
+                      </a>
+                      {afterUrl}
+                    </>
+                  );
+                } else {
+                  content = log.message;
+                }
+
+                return (
+                  <div key={i} className="flex gap-2">
+                    <span className="text-muted-foreground/50 shrink-0">[{log.time}]</span>
+                    <span className="text-blue-400/60 shrink-0">🍫</span>
+                    <span
+                      className={
+                        log.type === "success"
+                          ? "text-emerald-400"
+                          : log.type === "error"
+                            ? "text-red-400"
+                            : "text-blue-300/80"
+                      }
+                    >
+                      {content}
+                    </span>
+                  </div>
+                );
+              })}
               <div ref={agentLogEndRef} />
             </div>
           </CardContent>
@@ -423,6 +493,33 @@ export function StoragePanel({ data, onReadingStored }: StoragePanelProps) {
                 <p><span className="font-medium text-foreground">Recommended Use:</span> {String(pub?.recommendedUse ?? "")}</p>
                 <p><span className="font-medium text-foreground">Crop Health:</span> {String(pub?.cropHealthAssessment ?? "")}</p>
               </div>
+              {(() => {
+                const att = (analysis as Record<string, unknown>).attestation as Record<string, unknown> | undefined;
+                if (!att?.txHash) return null;
+                return (
+                  <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-amber-400 text-sm font-medium">📝 On-Chain Attestation</span>
+                      <Badge className="bg-emerald-500/20 text-emerald-400 text-[10px]">Verified</Badge>
+                    </div>
+                    <div className="text-xs text-muted-foreground space-y-0.5">
+                      <p>
+                        TX:{" "}
+                        <a
+                          href={String(att.explorerUrl ?? "#")}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono text-amber-400 underline hover:text-amber-300 transition-colors"
+                        >
+                          {String(att.txHash ?? "").slice(0, 14)}...{String(att.txHash ?? "").slice(-8)}
+                        </a>
+                      </p>
+                      <p>Chain: {String(att.chain ?? "")}</p>
+                      <p>Attester: <span className="font-mono">{String(att.attester ?? "").slice(0, 10)}...{String(att.attester ?? "").slice(-6)}</span></p>
+                    </div>
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
         );
