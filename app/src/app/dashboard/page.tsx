@@ -45,6 +45,10 @@ function DashboardContent() {
     setStoredMap(new Map());
     setCurrentIndex(undefined);
 
+    console.log("%c🍫 COCOA LEDGER — IoT DATA IMPORT", "color: #22c55e; font-size: 14px; font-weight: bold");
+    console.log(`%c📋 Job ID: ${newJobId}`, "color: #a855f7");
+    console.log(`%c📁 Loading: ${csvFile}`, "color: #3b82f6");
+
     try {
       await new Promise((r) => setTimeout(r, 800));
       const res = await fetch(`/${csvFile}`);
@@ -53,6 +57,9 @@ function DashboardContent() {
         header: true,
         skipEmptyLines: true,
       });
+      console.log(`%c✅ Loaded ${result.data.length} IoT readings from ${csvFile}`, "color: #22c55e");
+      console.log("%c📊 Sample reading:", "color: #6b7280", result.data[0]);
+      console.log(`%c🌡️ Fields: ${Object.keys(result.data[0] || {}).join(", ")}`, "color: #6b7280");
       setData(result.data);
       setLoaded(true);
     } catch {
@@ -63,6 +70,7 @@ function DashboardContent() {
   }, [csvFile]);
 
   const handleReadingStored = useCallback((index: number, hash: string) => {
+    console.log(`%c⛓️ ON-CHAIN: Reading #${index + 1} stored — https://blockscout-privacy-node-0.rayls.com/tx/${hash}`, "color: #22c55e");
     setCurrentIndex(index + 1);
     setStoredMap((prev) => {
       const next = new Map(prev);

@@ -65,11 +65,17 @@ export function StoragePanel({ data, onReadingStored }: StoragePanelProps) {
   const handleStore = useCallback(async () => {
     if (!isConnected || data.length === 0) return;
 
+    console.log("%c🍫 COCOA LEDGER — BATCH STORE STARTED", "color: #22c55e; font-size: 14px; font-weight: bold");
+    console.log(`%c📦 Total readings to store: ${data.length}`, "color: #3b82f6");
+    console.log("%c🔗 Target: Rayls Privacy Node (Chain 800000, gasless)", "color: #3b82f6");
+    console.log(`%c📄 Contract: ${process.env.NEXT_PUBLIC_DATA_CONTRACT_ADDRESS}`, "color: #6b7280");
+
     setError(null);
     setStored(0);
     setStatus("creating_lot");
     setLotId(null);
     setLogs([]);
+    setAgentLogs([]);
     addLog(`Starting batch process for ${data.length} readings...`);
 
     const controller = new AbortController();
@@ -112,19 +118,27 @@ export function StoragePanel({ data, onReadingStored }: StoragePanelProps) {
             const event = JSON.parse(line.slice(6));
 
             if (event.type === "lot_created") {
+              console.log(`%c✅ LOT CREATED — ID: ${event.lotId}, TX: ${event.hash}`, "color: #22c55e");
               setLotId(event.lotId);
               setStatus("storing");
               addLog(`Lot #${event.lotId} created — TX: ${event.hash}`, "success");
             } else if (event.type === "reading_stored") {
+              const pct = Math.round(((event.index + 1) / total) * 100);
+              console.log(`%c📝 Reading ${event.index + 1}/${total} (${pct}%) — TX: ${event.hash}`, "color: #60a5fa");
               setStored(event.index + 1);
               onReadingStored?.(event.index, event.hash);
               addLog(`Reading ${event.index + 1}/${total} stored — TX: ${event.hash}`, "success");
             } else if (event.type === "reading_error") {
+              console.log(`%c❌ Reading ${event.index} FAILED: ${event.error}`, "color: #ef4444");
               addLog(`Reading ${event.index} failed: ${event.error}`, "error");
             } else if (event.type === "agent_event") {
+              console.log(`%c🤖 AGENT [${event.step}]: ${event.message}`, event.step === "error" ? "color: #ef4444" : event.step === "scoring" || event.step === "complete" ? "color: #22c55e; font-weight: bold" : "color: #60a5fa");
               const logType = event.step === "error" ? "error" : event.step === "complete" || event.step === "scoring" ? "success" : "info";
               addAgentLog(event.message, logType as LogEntry["type"]);
             } else if (event.type === "analysis_complete") {
+              console.log("%c🎯 AI ANALYSIS COMPLETE", "color: #22c55e; font-size: 14px; font-weight: bold");
+              console.log("%c📊 Public Metadata:", "color: #a855f7; font-weight: bold", event.analysis?.publicMetadata);
+              console.log("%c🔒 Private Metadata:", "color: #f59e0b; font-weight: bold", event.analysis?.privateMetadata);
               setAnalysis(event.analysis);
               addLog(`AI Analysis complete — Grade: ${event.analysis?.publicMetadata?.qualityGrade}, Score: ${event.analysis?.publicMetadata?.qualityScore}/100`, "success");
               addAgentLog(`Analysis complete — metadata ready for NFT minting`, "success");
