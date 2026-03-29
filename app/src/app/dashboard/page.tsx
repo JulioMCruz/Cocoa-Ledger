@@ -145,6 +145,8 @@ function DashboardContent() {
                   className="h-11 rounded-lg border border-border/50 bg-card/50 px-3 text-sm text-foreground"
                 >
                   <option value="iot-data-test.csv">Test (10 readings)</option>
+                  <option value="iot-data-50.csv">Medium (50 readings)</option>
+                  <option value="iot-data-100.csv">Large (100 readings)</option>
                   <option value="iot-data.csv">Full (1,000 readings)</option>
                 </select>
 
