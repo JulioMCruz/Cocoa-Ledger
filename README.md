@@ -83,7 +83,8 @@ Prices are cached (5 min TTL), transparent (every response shows sources checked
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/health` | GET | Health check |
-| `/api/analyze-lot` | POST | AI quality analysis for a cacao lot |
+| `/api/analyze-lot` | POST | AI quality analysis + on-chain attestation |
+| `/api/attestations/:token` | GET | Read attestations for a token address |
 | `/api/oracle/price` | GET | Current cacao market price (ICE Futures US) |
 | `/api/oracle/history` | GET | 15 months historical price data |
 | `/api/oracle/valuation` | POST | Lot market valuation (price × volume × quality) |
@@ -264,9 +265,10 @@ sequenceDiagram
     Agent->>Agent: 🧠 AI quality analysis (Gemini 2.5)
     Agent->>Oracle: 📈 Fetch market price
     Oracle-->>Agent: $8,145/ton (ICE Futures)
-    Agent-->>App: Grade A · Score 93 · Value $24,435
+    Agent->>Agent: 📝 Post attestation on Public Chain
+    Agent-->>App: Grade A · Score 93 · Value $24,435 · TX: 0x...
 
-    App-->>Farmer: Display quality card + valuation
+    App-->>Farmer: Display quality card + attestation TX link
 ```
 
 ## 💰 Investor Journey
@@ -313,15 +315,45 @@ sequenceDiagram
 2. **Cocoa Agent Interaction** — AI connection, analysis steps, scoring
 3. **AI Quality Analysis Card** — Grade, score, price estimate, recommendations
 
+### On-Chain Attestation Flow
+
+When the agent analyzes a lot, it doesn't just return results — it **writes proof on-chain**:
+
+```
+1. Agent reads IoT data from Privacy Node
+2. AI (Gemini 2.5) produces quality score + grade
+3. Agent calls Attestation.attest() on Public Chain ← verifiable TX
+4. TX hash returned in response
+5. TX hash embedded in Confidential NFT private metadata
+6. Buyer purchases NFT → reveals TX hash → verifies on explorer
+```
+
+**What's public (attestation on-chain):**
+- Quality Grade + Score
+- Approved: yes/no
+- Agent address (who attested)
+- Lot ID, farm name, origin
+- Timestamp
+
+**What's private (encrypted in NFT):**
+- Per-device IoT statistics
+- GPS coordinates
+- Anomaly detection details
+- Price per kg (oracle-backed)
+- Full AI analysis report
+- Producer recommendations
+
+This is the **Disclosure Design** — the attestation says *"this lot is Grade A, score 93"* publicly. But **why** it's Grade A (the detailed data) is the value locked in the NFT.
+
 ### Smart Contract Suite
 
-| Contract | Chain | Purpose |
-|----------|-------|---------|
-| `CocoaLedgerData.sol` | Privacy | IoT data storage (lots + readings) |
-| `CocoaLedgerToken.sol` | Privacy → Public | Bridgeable ERC-20 |
-| `CocoaLedgerNFT.sol` | Privacy → Public | Bridgeable ERC-721 (harvest NFTs) |
-| `Attestation.sol` | Public | AI quality attestation registry |
-| `Marketplace.sol` | Public | Escrow marketplace for NFT trading |
+| Contract | Chain | Address | Purpose |
+|----------|-------|---------|---------|
+| `CocoaLedgerData.sol` | Privacy (800000) | `0x47B1...b4c6fC` | IoT data storage (lots + readings) |
+| `Attestation.sol` | Public (7295799) | `0x7f75...C0810` | AI quality attestation registry |
+| `CocoaLedgerToken.sol` | Privacy → Public | — | Bridgeable ERC-20 |
+| `CocoaLedgerNFT.sol` | Privacy → Public | — | Bridgeable ERC-721 (harvest NFTs) |
+| `Marketplace.sol` | Public | — | Escrow marketplace for NFT trading |
 
 ---
 
