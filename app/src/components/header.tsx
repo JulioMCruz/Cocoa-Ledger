@@ -4,6 +4,29 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { Leaf, ShoppingCart } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAccount, useBalance } from "wagmi";
+
+function USDrBalance() {
+  const { address, isConnected } = useAccount();
+  const { data: balance } = useBalance({
+    address,
+    chainId: 7295799,
+    query: { enabled: isConnected && !!address, refetchInterval: 15000 },
+  });
+
+  if (!isConnected || !balance) return null;
+
+  const formatted = parseFloat(balance.formatted).toFixed(4);
+
+  return (
+    <div className="hidden sm:flex items-center gap-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 px-2.5 py-1">
+      <span className="text-[10px] text-amber-400/70 font-medium">USDr</span>
+      <span className="text-xs font-mono font-semibold text-amber-400">
+        {formatted}
+      </span>
+    </div>
+  );
+}
 
 export function Header() {
   const pathname = usePathname();
@@ -52,11 +75,14 @@ export function Header() {
           </nav>
         </div>
 
-        <ConnectButton
-          chainStatus="icon"
-          accountStatus={{ smallScreen: "avatar", largeScreen: "full" }}
-          showBalance={false}
-        />
+        <div className="flex items-center gap-2">
+          <USDrBalance />
+          <ConnectButton
+            chainStatus="icon"
+            accountStatus={{ smallScreen: "avatar", largeScreen: "full" }}
+            showBalance={false}
+          />
+        </div>
       </div>
     </header>
   );
