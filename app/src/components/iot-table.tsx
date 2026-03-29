@@ -11,14 +11,17 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, CheckCircle2, ExternalLink } from "lucide-react";
 import type { IoTReading } from "@/lib/types";
 
 interface IoTTableProps {
   data: IoTReading[];
+  storedMap?: Map<number, string>; // index -> tx hash
+  currentIndex?: number; // currently being stored
 }
 
 const PAGE_SIZE = 20;
+const EXPLORER = "https://blockscout-privacy-node-0.rayls.com/tx/";
 
 function formatTemp(raw: string) {
   return (parseInt(raw) / 100).toFixed(1) + "°C";
@@ -59,7 +62,7 @@ function statusColor(status: string) {
   }
 }
 
-export function IoTTable({ data }: IoTTableProps) {
+export function IoTTable({ data, storedMap, currentIndex }: IoTTableProps) {
   const [page, setPage] = useState(0);
   const totalPages = Math.ceil(data.length / PAGE_SIZE);
 
@@ -70,13 +73,15 @@ export function IoTTable({ data }: IoTTableProps) {
 
   return (
     <div className="space-y-3">
-      {/* Mobile-friendly scrollable table */}
       <div className="table-scroll overflow-x-auto rounded-xl border border-border/50 bg-card/30">
         <Table>
           <TableHeader>
             <TableRow className="border-border/50 hover:bg-transparent">
               <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 #
+              </TableHead>
+              <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                On-Chain
               </TableHead>
               <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Device
@@ -114,63 +119,92 @@ export function IoTTable({ data }: IoTTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {pageData.map((row, idx) => (
-              <TableRow
-                key={page * PAGE_SIZE + idx}
-                className="border-border/30 transition-colors hover:bg-emerald-500/5"
-              >
-                <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
-                  {page * PAGE_SIZE + idx + 1}
-                </TableCell>
-                <TableCell className="whitespace-nowrap">
-                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-emerald-500/10 font-mono text-xs font-medium text-emerald-400">
-                    {row.device_id}
-                  </span>
-                </TableCell>
-                <TableCell className="whitespace-nowrap font-mono text-xs">
-                  {formatTime(row.timestamp)}
-                </TableCell>
-                <TableCell className="whitespace-nowrap text-sm">
-                  {row.cacao_type}
-                </TableCell>
-                <TableCell className="whitespace-nowrap text-sm">
-                  {row.region}
-                </TableCell>
-                <TableCell className="whitespace-nowrap font-mono text-xs">
-                  {formatTemp(row.temperature)}
-                </TableCell>
-                <TableCell className="whitespace-nowrap font-mono text-xs">
-                  {formatPercent(row.humidity)}
-                </TableCell>
-                <TableCell className="whitespace-nowrap font-mono text-xs">
-                  {formatPH(row.soil_ph)}
-                </TableCell>
-                <TableCell className="whitespace-nowrap font-mono text-xs">
-                  {formatPercent(row.soil_moisture)}
-                </TableCell>
-                <TableCell className="whitespace-nowrap font-mono text-xs">
-                  {formatPrecip(row.precipitation)}
-                </TableCell>
-                <TableCell className="whitespace-nowrap">
-                  <Badge
-                    variant="secondary"
-                    className={`text-[10px] uppercase tracking-wide ${statusColor(row.crop_status)}`}
-                  >
-                    {row.crop_status}
-                  </Badge>
-                </TableCell>
-                <TableCell className="whitespace-nowrap">
-                  <span className="font-mono text-xs font-medium">
-                    {row.lab_quality_score}
-                  </span>
-                </TableCell>
-              </TableRow>
-            ))}
+            {pageData.map((row, idx) => {
+              const globalIdx = page * PAGE_SIZE + idx;
+              const txHash = storedMap?.get(globalIdx);
+              const isStoring = currentIndex === globalIdx;
+              const isStored = !!txHash;
+
+              return (
+                <TableRow
+                  key={globalIdx}
+                  className={`border-border/30 transition-all ${
+                    isStoring
+                      ? "bg-amber-500/10 animate-pulse"
+                      : isStored
+                        ? "bg-emerald-500/5"
+                        : "hover:bg-emerald-500/5"
+                  }`}
+                >
+                  <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
+                    {globalIdx + 1}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {isStoring ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-amber-400" />
+                    ) : isStored ? (
+                      <a
+                        href={`${EXPLORER}${txHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-emerald-400 hover:text-emerald-300 transition-colors"
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    ) : (
+                      <span className="inline-block h-4 w-4 rounded-full border border-border/50" />
+                    )}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-emerald-500/10 font-mono text-xs font-medium text-emerald-400">
+                      {row.device_id}
+                    </span>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap font-mono text-xs">
+                    {formatTime(row.timestamp)}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-sm">
+                    {row.cacao_type}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-sm">
+                    {row.region}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap font-mono text-xs">
+                    {formatTemp(row.temperature)}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap font-mono text-xs">
+                    {formatPercent(row.humidity)}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap font-mono text-xs">
+                    {formatPH(row.soil_ph)}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap font-mono text-xs">
+                    {formatPercent(row.soil_moisture)}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap font-mono text-xs">
+                    {formatPrecip(row.precipitation)}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    <Badge
+                      variant="secondary"
+                      className={`text-[10px] uppercase tracking-wide ${statusColor(row.crop_status)}`}
+                    >
+                      {row.crop_status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    <span className="font-mono text-xs font-medium">
+                      {row.lab_quality_score}
+                    </span>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </div>
 
-      {/* Pagination */}
       <div className="flex items-center justify-between px-1">
         <p className="text-xs text-muted-foreground">
           <span className="hidden sm:inline">Showing </span>

@@ -33,18 +33,21 @@ function DashboardContent() {
   const [loaded, setLoaded] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
   const [jobTimestamp, setJobTimestamp] = useState<string | null>(null);
+  const [csvFile, setCsvFile] = useState<string>("iot-data-test.csv");
+  const [storedMap, setStoredMap] = useState<Map<number, string>>(new Map());
+  const [currentIndex, setCurrentIndex] = useState<number | undefined>(undefined);
 
   const loadCSV = useCallback(async () => {
     setLoading(true);
     const newJobId = generateJobId();
     setJobId(newJobId);
     setJobTimestamp(new Date().toLocaleString());
+    setStoredMap(new Map());
+    setCurrentIndex(undefined);
 
     try {
-      // Simulate device connection delay for realism
       await new Promise((r) => setTimeout(r, 800));
-
-      const res = await fetch("/iot-data.csv");
+      const res = await fetch(`/${csvFile}`);
       const text = await res.text();
       const result = Papa.parse<IoTReading>(text, {
         header: true,
@@ -57,6 +60,15 @@ function DashboardContent() {
     } finally {
       setLoading(false);
     }
+  }, [csvFile]);
+
+  const handleReadingStored = useCallback((index: number, hash: string) => {
+    setCurrentIndex(index + 1);
+    setStoredMap((prev) => {
+      const next = new Map(prev);
+      next.set(index, hash);
+      return next;
+    });
   }, []);
 
   return (
@@ -65,7 +77,6 @@ function DashboardContent() {
 
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-5 sm:px-6 sm:py-8">
         <div className="space-y-5 sm:space-y-8">
-          {/* Page header */}
           <section className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <Badge
@@ -100,10 +111,8 @@ function DashboardContent() {
             </p>
           </section>
 
-          {/* Farm Info */}
           <FarmInfo />
 
-          {/* IoT Reader Section */}
           <section className="space-y-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2">
@@ -120,37 +129,48 @@ function DashboardContent() {
                 )}
               </div>
 
-              <Button
-                onClick={loadCSV}
-                disabled={loading}
-                variant={loaded ? "outline" : "default"}
-                size="lg"
-                className={`h-11 w-full sm:w-auto ${
-                  loaded
-                    ? "border-border/50"
-                    : "bg-emerald-600 text-white hover:bg-emerald-500"
-                }`}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Scanning Devices…
-                  </>
-                ) : loaded ? (
-                  <>
-                    <FileSpreadsheet className="mr-2 h-4 w-4" />
-                    Rescan Devices
-                  </>
-                ) : (
-                  <>
-                    <Radio className="mr-2 h-4 w-4" />
-                    Read IoT Farm Devices
-                  </>
-                )}
-              </Button>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                {/* CSV file selector */}
+                <select
+                  value={csvFile}
+                  onChange={(e) => setCsvFile(e.target.value)}
+                  className="h-11 rounded-lg border border-border/50 bg-card/50 px-3 text-sm text-foreground"
+                >
+                  <option value="iot-data-test.csv">Test (10 readings)</option>
+                  <option value="iot-data.csv">Full (1,000 readings)</option>
+                </select>
+
+                <Button
+                  onClick={loadCSV}
+                  disabled={loading}
+                  variant={loaded ? "outline" : "default"}
+                  size="lg"
+                  className={`h-11 w-full sm:w-auto ${
+                    loaded
+                      ? "border-border/50"
+                      : "bg-emerald-600 text-white hover:bg-emerald-500"
+                  }`}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Scanning Devices…
+                    </>
+                  ) : loaded ? (
+                    <>
+                      <FileSpreadsheet className="mr-2 h-4 w-4" />
+                      Rescan Devices
+                    </>
+                  ) : (
+                    <>
+                      <Radio className="mr-2 h-4 w-4" />
+                      Read IoT Farm Devices
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
 
-            {/* Job info bar */}
             {jobId && (
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-border/30 bg-card/30 px-3 py-2 text-xs text-muted-foreground">
                 <span>
@@ -160,6 +180,10 @@ function DashboardContent() {
                 <span>
                   <span className="font-medium text-foreground">Started:</span>{" "}
                   {jobTimestamp}
+                </span>
+                <span>
+                  <span className="font-medium text-foreground">File:</span>{" "}
+                  {csvFile}
                 </span>
                 <span>
                   <span className="font-medium text-foreground">Status:</span>{" "}
@@ -178,11 +202,10 @@ function DashboardContent() {
               </div>
             )}
 
-            {/* Table / placeholder */}
             {loading ? (
               <SkeletonTable />
             ) : loaded ? (
-              <IoTTable data={data} />
+              <IoTTable data={data} storedMap={storedMap} currentIndex={currentIndex} />
             ) : (
               <Card className="border-border/50 border-dashed bg-card/20">
                 <CardContent className="flex flex-col items-center gap-3 py-14 text-center sm:py-16">
@@ -194,8 +217,7 @@ function DashboardContent() {
                       No data loaded yet
                     </p>
                     <p className="mx-auto mt-1 max-w-xs text-sm text-muted-foreground/60">
-                      Click &ldquo;Read IoT Farm Devices&rdquo; to scan your 8
-                      sensors and load 1,000 readings
+                      Select a dataset and click &ldquo;Read IoT Farm Devices&rdquo; to scan your sensors
                     </p>
                   </div>
                 </CardContent>
@@ -203,16 +225,14 @@ function DashboardContent() {
             )}
           </section>
 
-          {/* Storage Panel — only after data loaded */}
           {loaded && (
             <section>
-              <StoragePanel data={data} />
+              <StoragePanel data={data} onReadingStored={handleReadingStored} />
             </section>
           )}
         </div>
       </main>
 
-      {/* Footer */}
       <footer className="mt-auto border-t border-border/30 py-4">
         <div className="mx-auto max-w-5xl px-4 sm:px-6">
           <p className="text-center text-xs text-muted-foreground/50">
