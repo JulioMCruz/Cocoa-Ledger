@@ -315,35 +315,86 @@ sequenceDiagram
 2. **Cocoa Agent Interaction** — AI connection, analysis steps, scoring
 3. **AI Quality Analysis Card** — Grade, score, price estimate, recommendations
 
-### On-Chain Attestation Flow
+### On-Chain Attestation vs. Confidential NFT — What Goes Where and Why
 
-When the agent analyzes a lot, it doesn't just return results — it **writes proof on-chain**:
+This is the core **Disclosure Design** of Cocoa Ledger. Not all data should be public, and not all data should be hidden. The split follows real institutional logic:
 
 ```
-1. Agent reads IoT data from Privacy Node
-2. AI (Gemini 2.5) produces quality score + grade
-3. Agent calls Attestation.attest() on Public Chain ← verifiable TX
-4. TX hash returned in response
-5. TX hash embedded in Confidential NFT private metadata
-6. Buyer purchases NFT → reveals TX hash → verifies on explorer
+AI Analysis → Attestation (public proof) + Confidential NFT (private value)
 ```
 
-**What's public (attestation on-chain):**
-- Quality Grade + Score
-- Approved: yes/no
-- Agent address (who attested)
-- Lot ID, farm name, origin
-- Timestamp
+#### Side-by-Side Comparison
 
-**What's private (encrypted in NFT):**
-- Per-device IoT statistics
-- GPS coordinates
-- Anomaly detection details
-- Price per kg (oracle-backed)
-- Full AI analysis report
-- Producer recommendations
+| Data Point | 📝 Attestation (Public Chain) | 🔐 Confidential NFT (Encrypted) |
+|------------|------------------------------|----------------------------------|
+| **Quality Grade** | ✅ S/A/B/C/D | ✅ Included |
+| **Quality Score** | ✅ 0-100 | ✅ Included |
+| **Approved / Rejected** | ✅ Boolean | ✅ Included |
+| **Agent Address** | ✅ Who attested | ✅ Included |
+| **Farm Name & Origin** | ✅ General info | ✅ Included |
+| **Lot ID & Readings Count** | ✅ Reference numbers | ✅ Included |
+| **Timestamp** | ✅ When attested | ✅ Included |
+| **Attestation TX Hash** | ✅ On-chain proof | ✅ Embedded for verification |
+| **Per-Device IoT Statistics** | ❌ | ✅ Detailed sensor breakdowns |
+| **GPS Coordinates** | ❌ | ✅ Exact farm locations |
+| **Anomaly Detection Report** | ❌ | ✅ Equipment failures, events |
+| **Price Estimate per kg** | ❌ | ✅ Oracle-backed market valuation |
+| **Full AI Analysis Report** | ❌ | ✅ Detailed agronomic assessment |
+| **Lab Quality Analysis** | ❌ | ✅ Comprehensive quality report |
+| **Producer Recommendations** | ❌ | ✅ Actionable feedback |
+| **IoT Data Hash** | ❌ | ✅ Verify raw data integrity |
+| **Historical Price Context** | ❌ | ✅ Market trend data |
 
-This is the **Disclosure Design** — the attestation says *"this lot is Grade A, score 93"* publicly. But **why** it's Grade A (the detailed data) is the value locked in the NFT.
+#### Why This Split?
+
+**The attestation is like a credit score** — it tells you the result (Grade A, Score 93) but not the underlying data. Anyone can see it, verify it on the explorer, and use it to make a quick decision.
+
+**The NFT is like the full credit report** — it contains the detailed evidence behind the score. GPS locations, per-device sensor data, anomaly reports, price benchmarks, and the complete AI analysis. This is the real value.
+
+**Attestation (Public)** answers: *"Is this lot good?"*
+**NFT (Private)** answers: *"Why is it good, and what exactly are the conditions?"*
+
+#### Why Not Put Everything Public?
+
+| Private Data | Risk if Public |
+|-------------|---------------|
+| GPS coordinates | Competitors locate farms, land disputes, security risk |
+| Per-device statistics | Reveals farm infrastructure and monitoring capabilities |
+| Price per kg estimate | Undermines farmer's negotiation position |
+| Anomaly reports | Could be used to depress lot price unfairly |
+| Producer recommendations | Private operational feedback |
+| IoT data hash | Combined with public data could reverse-engineer locations |
+
+#### The Flow
+
+```mermaid
+sequenceDiagram
+    participant Agent as 🤖 Cocoa Agent
+    participant Public as 📝 Public Chain (Attestation)
+    participant NFT as 🔐 Confidential NFT
+
+    Agent->>Agent: Read IoT data from Privacy Node
+    Agent->>Agent: AI analysis (Gemini 2.5)
+    Agent->>Agent: Fetch market price (Oracle)
+    
+    Agent->>Public: attest(grade, score, approved)
+    Public-->>Agent: TX Hash (0x...)
+    Note over Public: Anyone can verify on explorer
+
+    Agent->>NFT: Embed full metadata + TX hash
+    Note over NFT: Encrypted — only NFT buyer can decrypt
+
+    Note over Public,NFT: Buyer sees attestation → trusts the grade
+    Note over Public,NFT: Buyer purchases NFT → unlocks the full story
+```
+
+#### Real-World Analogy
+
+Think of buying a house:
+- **Public record (attestation):** Address, sale price, property type, inspection pass/fail — anyone can look this up
+- **Private report (NFT):** Full inspection report, structural analysis, environmental tests, repair recommendations — you pay for this
+
+Cocoa Ledger does the same for cacao. The attestation builds trust. The NFT delivers value.
 
 ### Smart Contract Suite
 
