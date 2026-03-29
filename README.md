@@ -235,7 +235,7 @@ sequenceDiagram
 
     Farmer->>App: Click "Store on Privacy Node"
     App->>API: POST /api/store-chunk {action: create_lot}
-    API->>PN: createLot("Finca Dorada", "Peru")
+    API->>PN: createLot("Finca El Llano", "Colombia")
     PN-->>API: Lot ID + TX hash
     API-->>App: Lot created
     App-->>Farmer: Show lot ID in progress panel
@@ -285,7 +285,7 @@ sequenceDiagram
 
     Note over Investor,Market: Investor sees PUBLIC metadata only
     Market-->>Investor: Grade: A | Score: 93/100
-    Market-->>Investor: Avg Temp: 27.5°C | Region: Peru
+    Market-->>Investor: Avg Temp: 27.5°C | Region: Colombia
     Market-->>Investor: Recommended: Fine chocolate
 
     Investor->>Market: Buy NFT (pay with USDr)

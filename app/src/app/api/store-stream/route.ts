@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
 
         // Create lot
         send({ type: "status", message: "Creating lot...", progress: 0 });
-        const createTx = await contract.createLot(farmName || "Finca Dorada", origin || "Peru");
+        const createTx = await contract.createLot(farmName || "Finca El Llano", origin || "Colombia");
         await createTx.wait();
         const lotId = (await contract.nextLotId()) - 1n;
         send({ type: "lot_created", lotId: lotId.toString(), hash: createTx.hash });

@@ -1,11 +1,11 @@
 device_id,timestamp,cacao_type,region,altitude,temperature,humidity,precipitation,soil_moisture,soil_ph,soil_type,crop_age,crop_status,fruit_color,fruit_size,harvest_season,cultivation_method,pesticide_use,fermentation_type,light_intensity,gps_lat,gps_lng,producer_id,lot_volume_kg,sale_price_usd,lab_quality_score,certification
-3,2026-03-03T19:43:41Z,Criollo,Junin,862,2959,7655,12588,7631,682,volcanic,6,growing,purple,small,main,organic,none,box,15483,-10.748338,-74.869312,PROD-016,4901,8803,98,none
-3,2026-03-26T11:27:52Z,Trinitario,Amazonas,623,2248,9167,18668,4251,587,sandy_loam,3,fruiting,orange,large,mid-crop,organic,limited,box,39588,-6.746116,-77.338025,PROD-004,3461,11854,76,none
-5,2026-03-03T11:28:49Z,Forastero,Junin,784,2953,8604,16937,4160,627,sandy_loam,21,flowering,yellow,medium,main,organic,none,basket,42351,-10.642992,-74.869351,PROD-019,3794,12952,93,rainforest_alliance
-5,2026-03-07T09:08:16Z,Criollo,Amazonas,944,2641,9174,14971,7927,678,sandy_loam,4,flowering,yellow,large,main,traditional,controlled,basket,19416,-6.415730,-77.744419,PROD-002,2942,8025,70,organic
-4,2026-03-17T02:54:03Z,Criollo,Amazonas,1178,2413,7922,17182,6260,564,volcanic,23,fruiting,orange,small,mid-crop,organic,controlled,box,40149,-6.351797,-77.960566,PROD-019,3650,11838,98,rainforest_alliance
-4,2026-03-01T05:29:03Z,Criollo,San Martin,1159,2962,7940,9201,4198,624,clay_loam,25,growing,orange,small,mid-crop,organic,none,box,5476,-7.236672,-76.839329,PROD-014,1004,12278,62,none
-6,2026-03-21T13:22:10Z,Criollo,Junin,622,2734,7444,17194,5925,574,clay_loam,6,healthy,orange,large,main,agroforestry,limited,heap,24012,-11.510384,-75.395736,PROD-001,752,7116,79,none
-3,2026-03-23T15:29:40Z,Criollo,Junin,641,2242,7404,11153,6571,568,volcanic,4,fruiting,purple,medium,mid-crop,agroforestry,limited,heap,32064,-11.358931,-74.844152,PROD-012,2029,6200,76,organic
-5,2026-03-17T14:57:33Z,Criollo,Cusco,663,2291,8211,14070,5130,669,volcanic,18,flowering,orange,medium,mid-crop,organic,controlled,basket,23701,-14.026661,-71.644364,PROD-001,1555,4767,60,none
-1,2026-03-26T05:41:42Z,Criollo,San Martin,536,2581,8715,14726,7253,693,clay_loam,10,healthy,red,small,mid-crop,organic,none,box,36755,-6.460384,-75.551180,PROD-009,4424,2840,75,fair_trade
+3,2026-03-03T19:43:41Z,Criollo,Casanare,361,2959,7655,12588,7631,682,volcanic,6,growing,purple,small,main,organic,none,box,15483,5.778854,-73.424968,PROD-016,4901,8803,98,none
+3,2026-03-26T11:27:52Z,Trinitario,Vichada,184,2248,9167,18668,4251,587,sandy_loam,3,fruiting,orange,large,mid-crop,organic,limited,box,39588,4.11223,-71.011617,PROD-004,3461,11854,76,none
+5,2026-03-03T11:28:49Z,Forastero,Casanare,169,2953,8604,16937,4160,627,sandy_loam,21,flowering,yellow,medium,main,organic,none,basket,42351,5.853399,-70.823461,PROD-019,3794,12952,93,rainforest_alliance
+5,2026-03-07T09:08:16Z,Criollo,Vichada,175,2641,9174,14971,7927,678,sandy_loam,4,flowering,yellow,large,main,traditional,controlled,basket,19416,4.976231,-71.388761,PROD-002,2942,8025,70,organic
+4,2026-03-17T02:54:03Z,Criollo,Vichada,107,2413,7922,17182,6260,564,volcanic,23,fruiting,orange,small,mid-crop,organic,controlled,box,40149,4.046595,-69.731256,PROD-019,3650,11838,98,rainforest_alliance
+4,2026-03-01T05:29:03Z,Criollo,Meta,509,2962,7940,9201,4198,624,clay_loam,25,growing,orange,small,mid-crop,organic,none,box,5476,3.403113,-72.851941,PROD-014,1004,12278,62,none
+6,2026-03-21T13:22:10Z,Criollo,Casanare,86,2734,7444,17194,5925,574,clay_loam,6,healthy,orange,large,main,agroforestry,limited,heap,24012,4.940881,-71.732203,PROD-001,752,7116,79,none
+3,2026-03-23T15:29:40Z,Criollo,Casanare,512,2242,7404,11153,6571,568,volcanic,4,fruiting,purple,medium,mid-crop,agroforestry,limited,heap,32064,6.017615,-73.021022,PROD-012,2029,6200,76,organic
+5,2026-03-17T14:57:33Z,Criollo,Arauca,424,2291,8211,14070,5130,669,volcanic,18,flowering,orange,medium,mid-crop,organic,controlled,basket,23701,6.510376,-72.111301,PROD-001,1555,4767,60,none
+1,2026-03-26T05:41:42Z,Criollo,Meta,447,2581,8715,14726,7253,693,clay_loam,10,healthy,red,small,mid-crop,organic,none,box,36755,2.255526,-73.860218,PROD-009,4424,2840,75,fair_trade

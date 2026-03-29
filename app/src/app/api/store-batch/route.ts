@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     const contract = new ethers.Contract(CONTRACT, DATA_ABI, wallet);
 
     // Create lot
-    const createTx = await contract.createLot(farmName || "Finca Dorada", origin || "Peru");
+    const createTx = await contract.createLot(farmName || "Finca El Llano", origin || "Colombia");
     await createTx.wait();
 
     // Get the lot ID

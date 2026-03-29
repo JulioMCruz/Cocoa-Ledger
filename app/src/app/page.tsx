@@ -55,7 +55,7 @@ const features = [
 const stats = [
   { value: "1,000+", label: "IoT Readings / Lot" },
   { value: "8", label: "Sensor Devices" },
-  { value: "4", label: "Peru Regions" },
+  { value: "4", label: "Colombia Regions" },
   { value: "100%", label: "On-Chain" },
 ];
 
@@ -116,7 +116,7 @@ export default function LandingPage() {
           </h1>
 
           <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-muted-foreground sm:mt-6 sm:text-lg">
-            From the farms of Peru to your chocolate bar. Real-time IoT data,
+            From the farms of Colombia to your chocolate bar. Real-time IoT data,
             stored on a privacy-preserving blockchain, scored by AI — so every
             bean tells its story.
           </p>
